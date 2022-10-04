@@ -7,6 +7,7 @@
 <img src="https://img.shields.io/github/license/nik20z/hltv_bot">
 </p>
 
+[![https://telegram.me/ypec_bot](https://img.shields.io/badge/💬%20Telegram-Channel-blue.svg?style=flat-square)](https://telegram.me/ypec_bot)
 
 ## Описание
 
