@@ -1,0 +1,292 @@
+from bot.database import Table
+from bot.database import Insert
+from bot.database import Select
+
+from bot.functions import get_day_text
+from bot.functions import get_week_day_id_by_date_
+from bot.functions import convert_timetable_to_dict
+
+from bot.parse import MainTimetable
+from bot.parse import Replacements
+
+
+class TimetableHandler:
+    """Класс-обработчик
+
+        Атрибуты
+        --------
+        mt : class
+            class MainTimetable
+        rep : class
+            class Replacement
+        ready_timetable_data : list
+            массив со строчками с готовым расписанием
+        date_replacement : str
+            завтрашняя дата
+        week_lesson_type : int
+            id завтрашнего дня недели
+        group__names : list
+            кортеж групп
+        teacher_names : set
+            кортеж преподавателей
+
+        """
+
+    def __init__(self):
+
+        self.ready_timetable_data = []
+        self.date_replacement = get_day_text(days=1)
+        self.week_lesson_type = get_week_day_id_by_date_(self.date_replacement)
+
+        self.mt = MainTimetable()
+        self.rep = Replacements()
+
+        self.group__names = Select.all_info("group_", colomn_name="group__name")
+        if not self.group__names:
+            self.group__names = self.mt.get_array_names_by_type_name('group_')
+            Insert.group_(self.mt.group__names)
+
+        self.teacher_names = Select.all_info("teacher", colomn_name="teacher_name")
+        if not self.teacher_names:
+            self.teacher_names = self.mt.get_array_names_by_type_name('teacher')
+            Insert.teacher(self.mt.teacher_names)
+
+        self.lesson_names = set()
+
+    def get_main_timetable(self, type_name=None, names=None):
+        """Получаем основное расписание"""
+
+        if names is None:
+            names = []
+
+        self.mt.group__names = self.group__names
+        self.mt.teacher_names = self.teacher_names
+
+        self.mt.data.clear()
+
+        self.mt.parse(type_name=type_name, names=names)
+
+        Insert.lesson(self.mt.lesson_names)
+        Insert.audience(self.mt.audience_names)
+
+        Table.delete('main_timetable')
+        Insert.main_timetable(self.mt.data)
+
+    def get_replacement(self, day="tomorrow"):
+        """Получаем замены"""
+        self.rep.group__names = self.group__names
+
+        self.rep.data.clear()
+
+        self.rep.parse(day=day)
+        self.date_replacement = self.rep.date
+        self.week_lesson_type = self.rep.week_lesson_type
+
+        # если замен нет
+        if not self.rep.data:
+            Table.delete('replacement')
+            Table.delete('replacement_temp')
+            return "NO"
+
+        Insert.lesson(self.rep.lesson_names)
+        Insert.teacher(self.rep.teacher_names)
+        Insert.audience(self.rep.audience_names)
+
+        # если есть замены, но таблица с ними пуста
+        if Select.check_filling_table('replacement'):
+            Insert.replacement(self.rep.data)
+            return "NEW"
+
+        else:
+            # если замены есть, то перезаписываем их
+            Table.delete('replacement')
+            Insert.replacement(self.rep.data)
+
+            return "UPDATE"
+
+    def get_ready_timetable(self,
+                            date_=None,
+                            type_name='group_',
+                            names_array=None,
+                            lesson_type=True):
+        """Получаем готовое расписание
+        :param date_: дата, для которой будет составлено расписание
+        :param type_name: тип профиля
+        :param names_array: массив наименований групп/преподавателей
+        :param lesson_type: тип недели (числитель/знаменатель)
+        :return: None
+        """
+
+        if names_array is None:
+            names_array = []
+
+        if date_ is None:
+            date_ = get_day_text(days=1)
+
+        week_day_id = get_week_day_id_by_date_(date_)
+
+        self.ready_timetable_data.clear()
+
+        self.replacements_join_timetable(date_=date_,
+                                         type_name=type_name,
+                                         names_array=names_array,
+                                         week_day_id=week_day_id,
+                                         lesson_type=lesson_type)
+
+        Insert.lesson(list(self.lesson_names))
+        Insert.ready_timetable(self.ready_timetable_data)
+
+    def get_names_array_by_type_name(self, type_name):
+        """Получить массив наименований по пиру профиля"""
+        if type_name == 'group_':
+            return self.group__names
+
+        elif type_name == 'teacher':
+            return self.teacher_names
+
+    def replacements_join_timetable(self,
+                                    date_=None,
+                                    type_name='group_',
+                                    names_array=None,
+                                    week_day_id=0,
+                                    lesson_type=True):
+        """
+        Соединяем замены с основным расписанием
+        :param date_: дата, для которой будет составлено расписание
+        :param type_name: тип профиля
+        :param names_array: массив наименований групп/преподавателей
+        :param week_day_id: id дня недели
+        :param lesson_type: тип недели (числитель/знаменатель)
+        :return: None
+        """
+
+        if names_array is None:
+            names_array = []
+
+        if not names_array:
+            names_array = self.get_names_array_by_type_name(type_name)
+
+        for name_ in names_array:
+
+            timetable = Select.main_timetable(type_name=type_name,
+                                              name_=name_,
+                                              week_day_id=week_day_id,
+                                              lesson_type=lesson_type)
+
+            replacement = Select.replacement(type_name, name_)
+
+            timetable_dict = convert_timetable_to_dict(timetable)
+
+            last_num_lesson = None
+            # last_name = None
+
+            for rep_val in replacement:
+                """Перебираем строчки с заменами"""
+
+                num_lesson = rep_val[0]
+                lesson_by_main_timetable = rep_val[1][0]
+                replace_for_lesson = rep_val[2][0]
+                rep_name = rep_val[3][0]
+                rep_audience_array = rep_val[4]
+
+                if num_lesson in timetable_dict:
+                    """Если номер замены есть в оосновном расписании"""
+
+                    """Перебираем все пары для определённого номера пары"""
+                    for les in timetable_dict[num_lesson]:
+
+                        """Индекс пары в массиве пар"""
+                        ind = timetable_dict[num_lesson].index(les)
+                        name_array = les[-2]
+
+                        if 'по расписанию' in replace_for_lesson.lower():
+                            """Обработчик ---по расписанию---"""
+
+                            if rep_name in name_array:
+                                """Если есть совпадение с преподавателем"""
+
+                                if rep_name == name_array[ind]:
+                                    """Если для данной пары есть"""
+                                    timetable_dict[num_lesson][ind][-3] += \
+                                        replace_for_lesson.lower().split('по расписанию')[-1]
+                                    # timetable_dict[num_lesson][ind][-2] = [rep_name]
+                                    timetable_dict[num_lesson][ind][-1] = rep_audience_array
+
+                            # учесть ситуацию, когда предмет не меняется, но меняется препод!!!!
+                            # учесть ситуацию, когда в основном расписании нет преподов, но он указан в заменах
+
+                            elif list(set(name_array)) == [None]:
+                                """Если в оснвоном расписании не указан преподаватель"""
+                                timetable_dict[num_lesson] = [[timetable_dict[num_lesson][ind][-3],
+                                                               [rep_name],
+                                                               rep_audience_array]]
+
+                            elif rep_name is None:
+                                """Если в заменах не указан преподаватель """
+                                timetable_dict[num_lesson][ind][-1] = rep_audience_array
+
+                        elif replace_for_lesson.strip().lower() == 'нет':
+                            """Если пару отменили"""
+
+                            if len(name_array) == 1 and last_num_lesson != num_lesson:
+                                """Если пару ведёт один преподаватель и номер в прошлой итерации не равен текущему номеру пары"""
+                                del timetable_dict[num_lesson]
+                                break
+
+                            else:
+                                '''
+                                это развилка для ситуаций, когда в заменах одна пара по расписанию, а другая отменяется
+                                проблема моего костыля в том, что при мелейшей ошибке - код не сработает :(
+                                '''
+
+                                if lesson_by_main_timetable in timetable_dict[num_lesson][ind][-3].lower():
+                                    del timetable_dict[num_lesson][ind]
+
+                        else:
+                            """Все остальные случаи"""
+                            new_lesson_info = [replace_for_lesson, [rep_name], rep_audience_array]
+
+                            if last_num_lesson == num_lesson:
+                                """Если номер в прошлой итерации равен текущему номеру пары"""
+                                timetable_dict[num_lesson].append(new_lesson_info)
+
+                            else:
+                                timetable_dict[num_lesson][ind] = new_lesson_info
+
+                            break
+
+                    # last_name = rep_name
+
+                else:
+                    # бывают случаи, когда в основном расписании только одна пара, а в заменах "по расписанию"
+                    # указаны 2 пары
+
+                    # НУЖНО УЧЕСТЬ, ВОЗМОЖНОСТЬ НЕКОРРЕКТНОЙ РАБОТЫ МОДУЛЯ ОБРАБОТКИ "нет"
+                    if replace_for_lesson.strip().lower() != 'нет':
+                        """Если пара не отменяется, то добавляем её как новую"""
+                        timetable_dict[num_lesson] = [[replace_for_lesson, [rep_name], rep_audience_array]]
+
+                last_num_lesson = num_lesson
+
+            self.filling_ready_timetable_data(date_, name_, timetable_dict)
+
+    def filling_ready_timetable_data(self, date_, name_, timetable_dict):
+        """Заполняем массив self.ready_timetable_data и кортеж lesson_names"""
+        for num_lesson, lessons_array in timetable_dict.items():
+
+            for one_lesson in lessons_array:
+                lesson_name = one_lesson[0]
+                teacher_name_array = one_lesson[1]
+                audience_array = one_lesson[2]
+
+                for teacher_name in teacher_name_array:
+                    ind = teacher_name_array.index(teacher_name)
+
+                    if len(audience_array) == 1:
+                        ind = 0
+                    audience = audience_array[ind]
+
+                    data_one_lesson = (date_, name_, num_lesson, lesson_name, teacher_name, audience)
+
+                    self.lesson_names.add(lesson_name)
+                    self.ready_timetable_data.append(data_one_lesson)
