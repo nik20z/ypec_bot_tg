@@ -128,10 +128,12 @@ def get_next_check_time(array_times: list, func_name):
     """Расчет времени до следующего цикла в зависимости от названия функции"""
 
     delta = 0
-    now = datetime.now()
-    one_second = round(now.microsecond / 1000000)
+    one_second = 0
 
     for t in array_times[func_name]:
+        now = datetime.now()
+        one_second = round(now.microsecond / 1000000)
+
         check_t = datetime.strptime(t, "%H:%M")
 
         delta = timedelta(hours=now.hour - check_t.hour,

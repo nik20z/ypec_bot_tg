@@ -104,7 +104,8 @@ table_create_queries = {
                                         view_time boolean DEFAULT False,
                                         ban boolean DEFAULT False,
                                         number_bans smallint DEFAULT 0,
-                                        timeout_ban timestamp without time zone
+                                        timeout_ban timestamp without time zone,
+                                        bot_blocked boolean DEFAULT False
                                         );""",
 
     "config": """CREATE TABLE IF NOT EXISTS config (

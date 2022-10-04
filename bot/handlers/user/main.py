@@ -1,12 +1,12 @@
 import asyncio
-from aiogram import Dispatcher, types
+from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery
 
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from aiogram.utils.exceptions import BotBlocked
+# from aiogram.utils.exceptions import BotBlocked
 
 from bot.database import Select, Insert, Update
 
@@ -24,15 +24,7 @@ from bot.functions import get_day_text
 from bot.functions import get_week_day_name_by_id
 from bot.functions import month_translate
 
-
-def rate_limit(limit: int, key=None):
-    def decorator(func):
-        setattr(func, 'throttling_rate_limit', limit)
-        if key:
-            setattr(func, 'throttling_key', key)
-        return func
-
-    return decorator
+from bot.throttling import rate_limit
 
 
 class UserStates(StatesGroup):
@@ -589,10 +581,12 @@ async def help_message(message: Message):
 async def show_keyboard(message: Message):
     await message.answer(text=ANSWER_TEXT['show_keyboard'], reply_markup=Reply.default())
 
+
 '''
 async def bot_blocked_error(update: types.Update, exception: BotBlocked):
     pass
 '''
+
 
 def register_user_handlers(dp: Dispatcher):
     # todo: register all user handlers
@@ -708,4 +702,4 @@ def register_user_handlers(dp: Dispatcher):
                                 commands=['show_keyboard'],
                                 state='*')
 
-    #dp.register_message_handler(bot_blocked_error, exception=BotBlocked)
+    # dp.register_message_handler(bot_blocked_error, exception=BotBlocked)

@@ -20,7 +20,6 @@ def concert_fetchall_to_list(result: tuple):
     return [x[0] for x in result]
 
 
-
 def check_filling_table(table_name: str):
     """Проверка наличия данных в таблице True - если таблица пустая"""
     cursor.execute("SELECT EXISTS (SELECT * FROM {0})".format(table_name))
@@ -95,7 +94,7 @@ def ready_timetable(type_name: str, date_: str, name_: str):
                    json_object_agg(DISTINCT COALESCE(NULLIF({0}_name, ''), '...'), audience_name)
             FROM ready_timetable_info
             WHERE date_ = '{2}' AND {1}_name = '{3}'
-            GROUP BY lesson_name, {0}_name
+            GROUP BY lesson_name, {0}_name, audience_name
             ORDER BY num_les
             """.format(reverse_type_name, type_name, date_, name_)
 
@@ -219,10 +218,10 @@ def teacher(columns=['teacher_id', 'teacher_name']):
 
 
 @check_none
-def value_by_id(table_name_: str, colomn_names: list, value: str, check_id_name_colomn: str):
+def value_by_id(table_name_: str, colomn_names: list, id_: str, check_id_name_colomn: str):
     """Получить конкретный параметр: указывается Таблица, Название колонки, Значение, Название колонки"""
     query = "SELECT {1} FROM {0} WHERE {2} = %s".format(table_name_, ', '.join(colomn_names), check_id_name_colomn)
-    cursor.execute(query, (value,))
+    cursor.execute(query, (id_,))
     return cursor.fetchone()
 
 
