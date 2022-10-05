@@ -202,8 +202,8 @@ def support(callback_data: str,
     qiwi_balance_btn = Button(f"Баланс Qiwi-кошелька: {rubBalance} ₽").inline(f"{callback_data} history_balance",
                                                                               url=Donate.QIWI)
 
-    tinkoff_btn = Button('💵 Тинькофф 💵').inline('', url=Donate.TINKOFF)
-    sber_btn = Button('💵 Сбер 💵').inline('', url=Donate.SBERBANK)
+    tinkoff_btn = Button('💶 Тинькофф 💶').inline('', url=Donate.TINKOFF)
+    sber_btn = Button('💶 Сбер 💶').inline('', url=Donate.SBERBANK)
     vk_btn = Button('💬 Вконтакте 💬').inline('', url=Communicate.VK)
     back_btn = get_back_button(last_callback_data)
 
@@ -315,7 +315,8 @@ def months_ready_timetable(months_array: list,
     keyboard = InlineKeyboardMarkup()
 
     for month in months_array:
-        month_btn = Button(month_translate(month)).inline(f"{callback_data} {month}")
+        text_btn = month_translate(month)
+        month_btn = Button(text_btn).inline(f"{callback_data} {month}")
         keyboard.add(month_btn)
 
     keyboard.add(get_back_button(last_callback_data))
@@ -329,9 +330,13 @@ def dates_ready_timetable(dates_array: list,
     """Список дат для просмотра истории расписания"""
     keyboard = InlineKeyboardMarkup()
 
+    get_ready_timetable_txt_btn = Button("📥 Скачать txt 📥").inline(f"{callback_data} download_ready_timetable_txt")
+    keyboard.add(get_ready_timetable_txt_btn)
+
     for date_ in dates_array:
+        date__text_btn = date_.strftime('%d (%A)').lstrip('0')
         date__callback = f"{callback_data} {date_.strftime('%d.%m.%Y')}"
-        date__btn = Button(date_.strftime('%d (%A)').lstrip('0')).inline(date__callback)
+        date__btn = Button(date__text_btn).inline(date__callback)
         keyboard.add(date__btn)
 
     keyboard.add(get_back_button(last_callback_data))

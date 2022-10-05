@@ -1,12 +1,15 @@
 import asyncio
 from aiogram import Dispatcher
+from aiogram import types
 from aiogram.types import Message, CallbackQuery
 
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-# from aiogram.utils.exceptions import BotBlocked
+from aiogram.utils.exceptions import TerminatedByOtherGetUpdates, BotBlocked
+
+from io import StringIO
 
 from bot.database import Select, Insert, Update
 
@@ -150,10 +153,7 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
     """Выбор группы для нового пользователя"""
     user_id = callback.message.chat.id
     group__id = callback.data.split()[-1]
-    group__name = Select.value_by_id(table_name_="group_",
-                                     colomn_names=["group__name"],
-                                     id_=group__id,
-                                     check_id_name_colomn="group__id")
+    group__name = Select.name_by_id("group_", group__id)
 
     Update.user_settings(user_id, 'name_id', group__id)
     Update.user_settings_array(user_id, name_='group_', value=group__id)
@@ -183,10 +183,7 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
     """Выбор преподавателя для нового пользователя"""
     user_id = callback.message.chat.id
     teacher_id = callback.data.split()[-1]
-    teacher_name = Select.value_by_id(table_name_="teacher",
-                                      colomn_names=["teacher_name"],
-                                      id_=teacher_id,
-                                      check_id_name_colomn="teacher_id")
+    teacher_name = Select.name_by_id("teacher", teacher_id)
 
     Update.user_settings(user_id, 'name_id', teacher_id)
     Update.user_settings_array(user_id, name_='teacher', value=teacher_id)
@@ -222,13 +219,7 @@ async def timetable(message: Message):
     """Обработчик запроса на получение Расписания"""
     user_id = message.chat.id
 
-    colomn_names = ["CASE WHEN type_name THEN 'group_' WHEN not type_name THEN 'teacher' ELSE NULL END",
-                    "name_id",
-                    "view_name",
-                    "view_add",
-                    "view_time"]
-
-    user_info = Select.user_info_by_colomn_names(user_id, colomn_names=colomn_names)
+    user_info = Select.user_info_by_colomn_names(user_id)
 
     type_name = user_info[0]
     name_id = user_info[1]
@@ -237,14 +228,16 @@ async def timetable(message: Message):
     view_time = user_info[4]
 
     if type_name is None:
+        """У пользователя нет основной подписки"""
         return await message.answer(ANSWER_TEXT['no_main_subscription'])
 
-    name_ = Select.value_by_id(table_name_=type_name,
-                               colomn_names=[f"{type_name}_name"],
-                               id_=name_id,
-                               check_id_name_colomn=f"{type_name}_id")
+    name_ = Select.name_by_id(type_name, name_id)
 
-    date_ = get_day_text(days=1)
+    date_ = get_day_text()
+    if Select.check_filling_table("replacement"):
+        """Если в таблице есть замены"""
+        date_ = get_day_text(days=1)
+
     data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
 
     text = get_message_timetable(name_,
@@ -270,11 +263,9 @@ async def settings(message: Message, callback=None, edit_text=False):
     user_settings_data = list(Select.user_info(user_id))
     table_name = user_settings_data[0]
     name_id = user_settings_data[2]
+
     if name_id is not None:
-        name_ = Select.value_by_id(table_name,
-                                   [f"{table_name}_name"],
-                                   name_id,
-                                   f"{table_name}_id")
+        name_ = Select.name_by_id(table_name, name_id)
         user_settings_data[1] = name_
 
     text = ANSWER_TEXT['settings']
@@ -471,10 +462,8 @@ async def get_main_timetable_by_week_day_id(callback: CallbackQuery, last_ind=-1
 
     type_name = colomn_name_by_callback.get(callback_data_split[-4])
     name_id = callback_data_split[-3]
-    name_ = Select.value_by_id(table_name_=type_name,
-                               colomn_names=[f"{type_name}_name"],
-                               id_=name_id,
-                               check_id_name_colomn=f"{type_name}_id")
+    name_ = Select.name_by_id(type_name, name_id)
+
     data_main_timetable = Select.view_main_timetable(type_name, name_, week_day_id=week_day_id, lesson_type=None)
 
     if not data_main_timetable:
@@ -510,15 +499,54 @@ async def months_history_ready_timetable(callback: CallbackQuery, last_ind=-1):
 async def dates_ready_timetable(callback: CallbackQuery, last_ind=-1):
     """Вывести список дат"""
     [callback_data_split, last_callback_data] = get_callback_values(callback, last_ind)
+    type_name = colomn_name_by_callback.get(callback_data_split[-4])
+    name_id = callback_data_split[-3]
     month = callback_data_split[-1]
+
+    name_ = Select.name_by_id(type_name, name_id)
 
     dates_array = Select.dates_ready_timetable(month)
 
-    text = ANSWER_TEXT['dates_ready_timetable'](month_translate(month))
+    text = ANSWER_TEXT['dates_ready_timetable'](name_, month_translate(month))
     keyboard = Inline.dates_ready_timetable(dates_array, callback.data, last_callback_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await bot.answer_callback_query(callback.id)
+
+
+@rate_limit(1)
+async def download_ready_timetable_txt(callback: CallbackQuery):
+    user_id = callback.message.chat.id
+    callback_data_split = callback.data.split()
+
+    type_name = colomn_name_by_callback.get(callback_data_split[-5])
+    name_id = callback_data_split[-4]
+    month = callback_data_split[-2]
+
+    name_ = Select.name_by_id(type_name, name_id)
+
+    text = f"{name_} {month_translate(month)}\n\n"
+
+    user_info = Select.user_info_by_colomn_names(user_id, colomn_names=['view_add', 'view_time'])
+    view_add = user_info[0]
+    view_time = user_info[1]
+
+    dates_array = Select.dates_ready_timetable(month, type_sort='')
+
+    for date_ in dates_array:
+        data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
+        date_text = date_.strftime('%d.%m.%Y')
+        ready_timetable_message = get_message_timetable(name_,
+                                                        date_text,
+                                                        data_ready_timetable,
+                                                        view_name=False,
+                                                        view_add=view_add,
+                                                        view_time=view_time)
+        text += f"{ready_timetable_message}\n\n"
+
+    file = StringIO(text)
+    file.name = f"{name_} {month_translate(month)}.txt"
+    await bot.send_document(user_id, file)
 
 
 async def ready_timetable_by_date(callback: CallbackQuery):
@@ -540,7 +568,10 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
     [callback_data_split, last_callback_data] = get_callback_values(callback, last_ind)
 
     if date_ is None:
-        date_ = get_day_text(days=1)
+        date_ = get_day_text()
+        if Select.check_filling_table("replacement"):
+            """Если таблица с заменами заполнена"""
+            date_ = get_day_text(days=1)
 
     if type_name is None:
         type_name = colomn_name_by_callback.get(callback_data_split[-1])
@@ -548,11 +579,15 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
     if name_id is None:
         name_id = callback_data_split[-2]
 
-    name_ = Select.value_by_id(table_name_=type_name,
-                               colomn_names=[f"{type_name}_name"],
-                               id_=name_id,
-                               check_id_name_colomn=f"{type_name}_id")
+    name_ = Select.name_by_id(type_name, name_id)
+
     data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
+
+    if not data_ready_timetable:
+        """Расписание на выбранную дату отсутствует"""
+        return await bot.answer_callback_query(callback_query_id=callback.id,
+                                               text=ANSWER_CALLBACK['not_ready_timetable'],
+                                               show_alert=False)
 
     text = get_message_timetable(name_, date_, data_ready_timetable)
     keyboard = Inline.get_back_button(last_callback_data, return_keyboard=True)
@@ -562,7 +597,7 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
 
 
 async def view_callback(callback: CallbackQuery):
-    """Обработчик нажатий на пусктые кнопки"""
+    """Обработчик нажатий на пустые кнопки"""
     await bot.answer_callback_query(callback_query_id=callback.id,
                                     text=' '.join(callback.data.split()[1:]),
                                     show_alert=True)
@@ -583,8 +618,13 @@ async def show_keyboard(message: Message):
 
 
 '''
-async def bot_blocked_error(update: types.Update, exception: BotBlocked):
+async def bot_blocked(update: types.Update, exception: BotBlocked):
     pass
+'''
+
+'''
+async def terminated_by_other_get_updates(update: types.Update, exception: TerminatedByOtherGetUpdates):
+    await bot.send_message(chat_id=1020624735, text="Запущено 2 экземпляра бота")
 '''
 
 
@@ -682,6 +722,9 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(dates_ready_timetable,
                                        lambda call: check_call(call, ['mhrt'], ind=-2))
 
+    dp.register_callback_query_handler(download_ready_timetable_txt,
+                                       lambda call: check_call(call, ['download_ready_timetable_txt']))
+
     dp.register_callback_query_handler(ready_timetable_by_date,
                                        lambda call: check_call(call, ['mhrt'], ind=-3))
 
@@ -702,4 +745,4 @@ def register_user_handlers(dp: Dispatcher):
                                 commands=['show_keyboard'],
                                 state='*')
 
-    # dp.register_message_handler(bot_blocked_error, exception=BotBlocked)
+    # dp.register_errors_handler(terminated_by_other_get_updates, exception=TerminatedByOtherGetUpdates)

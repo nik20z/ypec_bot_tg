@@ -117,11 +117,15 @@ colomn_name_by_callback = {'sp_gr': 'spam_group_',
                            }
 
 
-def get_day_text(days=0, format_str="%d.%m.%Y"):
+def get_day_text(date_=None, days=0, delete_sunday=True, format_str="%d.%m.%Y"):
     """Получить отформатированную дату"""
-    if date.today().weekday() == 5:
+    if date_ is None:
+        date_ = date.today()
+
+    if delete_sunday and date_.weekday() == 5:
         days = 2
-    return (date.today() + timedelta(days=days)).strftime(format_str)
+
+    return (date_ + timedelta(days=days)).strftime(format_str)
 
 
 def get_next_check_time(array_times: list, func_name):

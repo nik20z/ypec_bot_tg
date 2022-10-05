@@ -54,7 +54,7 @@ class Replacements:
         """Парсим замены и заносим данные в массив self.data
 
             Параметры:
-                day (str): день, для которого неообходимо спарсить замены
+                day (str): день, для которого необходимо спарсить замены
 
             Возвращаемое значение:
                 None
@@ -70,12 +70,18 @@ class Replacements:
 
         group__name = None
 
-        # print(table_soup.find('tr'))
-        """
-        Таблица на сайте составлена неправильно - первая строчка не имеет тега <tr></tr>
-        """
+        rows = table_soup.find_all('tr')[1:]
 
-        for tr in table_soup.find_all('tr')[1:]:
+        # Обрабатываем первую строчку
+        first_row = table_soup.find_all('td')[6:12]
+        new_tr = soup.new_tag("tr")
+
+        for td in first_row:
+            new_tr.append(td)
+
+        rows.insert(0, new_tr)
+
+        for tr in rows:
             """Перебираем строчки таблицы"""
             one_td_array = tr.find_all('td')
 

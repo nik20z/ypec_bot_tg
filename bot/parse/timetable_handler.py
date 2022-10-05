@@ -93,7 +93,7 @@ class TimetableHandler:
         Insert.audience(self.rep.audience_names)
 
         # если есть замены, но таблица с ними пуста
-        if Select.check_filling_table('replacement'):
+        if not Select.check_filling_table('replacement'):
             Insert.replacement(self.rep.data)
             return "NEW"
 

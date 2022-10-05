@@ -1,4 +1,3 @@
-from io import StringIO
 import time
 
 from aiogram import Dispatcher
@@ -6,8 +5,8 @@ from aiogram.types import Message
 from aiogram.dispatcher.filters import IDFilter
 
 from bot.database import Insert, Delete
-from bot.parse import TimetableHandler
 from bot.functions import get_rub_balance
+from bot.parse import TimetableHandler
 
 from bot.misc import Qiwi
 
@@ -49,12 +48,6 @@ async def update_timetable(message: Message):
     pass
 
 
-async def send_document(message: Message):
-    text = """some text ..."""
-    file = StringIO(text)
-    await bot.send_document(file)
-
-
 def register_admin_handlers(dp: Dispatcher):
     # todo: register all admin handlers
 
@@ -80,7 +73,3 @@ def register_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(update_timetable,
                                 IDFilter(chat_id=[1020624735]),
                                 commands=['update_timetable'])
-
-    dp.register_message_handler(send_document,
-                                IDFilter(chat_id=[1020624735]),
-                                commands=['send_document'])

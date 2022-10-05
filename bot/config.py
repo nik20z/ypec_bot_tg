@@ -2,13 +2,13 @@ GOD_ID = 1020624735
 ADMINS = []
 
 # webhook settings
-WEBHOOK_HOST = ''
+WEBHOOK_HOST = 'https://d0f9-37-113-72-49.ngrok.io'
 WEBHOOK_PATH = ''
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 # webserver settings
 WEBAPP_HOST = '127.0.0.1'  # or ip
-WEBAPP_PORT = 5000
+WEBAPP_PORT = 4040
 
 array_times = {'check_replacement': ["00:00",
                                      "9:00",
@@ -70,8 +70,8 @@ ANSWER_TEXT = {'new_user': {
             "\n"
             "Все кнопки кликабельны, поэтому чтобы получить информацию о каком-либо параметре в настройках - просто нажмите на него)\n",
     'show_keyboard': "Клавиатура",
-    'months_history_ready_timetable': "Выберите месяц",
-    'dates_ready_timetable': lambda month: f"Расписание на <b>{month}</b> месяц"
+    'months_history_ready_timetable': "📅 Выберите месяц",
+    'dates_ready_timetable': lambda name_, month: f"Расписание на <b>{month}</b> месяц для <b>{name_}</b>"
 }
 
 ANSWER_CALLBACK = {'new_user': {
@@ -86,6 +86,7 @@ ANSWER_CALLBACK = {'new_user': {
         'view_time': "Отображать время начала и окончания занятий",
         'subscribe': "Подписка"},
     'not_timetable_by_week_day': lambda week_day: f"Расписания для {week_day} нет",
+    'not_ready_timetable': "Расписание отсутствует",
     'spam_or_subscribe_name_id': lambda action_type, result: f"{'Рассылка' if action_type == 'sp' else 'Подписка'} {'активирована' if result else 'удалена'}",
     'main_subscribe_name_id': lambda result: f"Основная подписка {'активирована' if result else 'удалена'}"
 }

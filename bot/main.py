@@ -1,36 +1,27 @@
 import asyncio
-from aiogram import Bot, Dispatcher
 
+from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
-
 from aiogram.types import BotCommand
-
 from aiogram.utils import executor
 
 import logging
 
 # My Modules
 from bot.config import array_times
-
 from bot.database import Table
-
 from bot.filters import register_all_filters
 from bot.functions import get_next_check_time
 from bot.handlers import register_all_handlers
-
 from bot.misc import TgKeys
-
 from bot.spamming import check_replacement
-
 from bot.throttling import ThrottlingMiddleware
 
-from bot.config import WEBHOOK_URL
-from bot.config import WEBHOOK_PATH
-from bot.config import WEBAPP_HOST
-from bot.config import WEBAPP_PORT
-
-
+# from bot.config import WEBHOOK_URL
+# from bot.config import WEBHOOK_PATH
+# from bot.config import WEBAPP_HOST
+# from bot.config import WEBAPP_PORT
 
 
 def repeat(func, dp, loop_repeat):
@@ -62,9 +53,8 @@ async def on_shutdown(dp: Dispatcher) -> None:
 
 
 def start_bot():
-
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%H:%M:%S')
-    logger = logging.getLogger(__name__)
+    logging.getLogger(__name__)
 
     Table.create()
     Table.create_view()

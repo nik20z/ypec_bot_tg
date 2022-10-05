@@ -20,10 +20,10 @@ def concert_fetchall_to_list(result: tuple):
     return [x[0] for x in result]
 
 
-def check_filling_table(table_name: str):
-    """Проверка наличия данных в таблице True - если таблица пустая"""
+def check_filling_table(table_name: str) -> object:
+    """Проверка наличия данных в таблице False - если таблица пустая"""
     cursor.execute("SELECT EXISTS (SELECT * FROM {0})".format(table_name))
-    return not cursor.fetchone()[0]
+    return cursor.fetchone()[0]
 
 
 def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
@@ -158,7 +158,11 @@ def user_info(user_id: int):
 def user_info_by_colomn_names(user_id: int, colomn_names=None):
     """Данные о пользователе по конкретным колонкам"""
     if colomn_names is None:
-        colomn_names = ['user_id']
+        colomn_names = ["CASE WHEN type_name THEN 'group_' WHEN not type_name THEN 'teacher' ELSE NULL END",
+                        "name_id",
+                        "view_name",
+                        "view_add",
+                        "view_time"]
     query = """SELECT {1}
                 FROM telegram
                 WHERE user_id = {0}""".format(user_id, ', '.join(colomn_names))
@@ -226,6 +230,12 @@ def value_by_id(table_name_: str, colomn_names: list, id_: str, check_id_name_co
 
 
 @check_none
+def name_by_id(type_name, name_id):
+    query = "SELECT {0}_name FROM {0} WHERE {0}_id = {1}".format(type_name, name_id)
+    cursor.execute(query)
+    return cursor.fetchone()
+
+@check_none
 def config(value_: str):
     """Данные из таблицы config"""
     query = "SELECT value_ FROM config WHERE key_ = '{0}'".format(value_)
@@ -271,13 +281,13 @@ def user_ids_telegram_by(type_name: str, name_id: int):
     return cursor.fetchall()
 
 
-def dates_ready_timetable(month: str):
+def dates_ready_timetable(month: str, type_sort='DESC'):
     """Список дат с готовым расписанием для определённого месяца"""
     query = """SELECT DISTINCT date_
                FROM ready_timetable
                WHERE to_char(date_, 'Mon') = %s
-               ORDER BY date_ DESC"""
-    cursor.execute(query, (month,))
+               ORDER BY date_ {0}""".format(type_sort)
+    cursor.execute(query, (month, ))
     return concert_fetchall_to_list(cursor.fetchall())
 
 

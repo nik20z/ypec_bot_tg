@@ -3,6 +3,7 @@ import time
 from aiogram import Dispatcher
 from aiogram.utils.exceptions import BadRequest, BotBlocked
 
+# My Modules
 from bot.config import GOD_ID
 from bot.config import ANSWER_TEXT
 
@@ -105,14 +106,16 @@ async def start_spamming(dp: Dispatcher, get_all_ids=False):
                     # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
                     # await dp.bot.send_message(GOD_ID, text=f"Пользователь {user_id} заблочил бота")
 
-    avg_time_send_msg = round(sum(time_send_msg_array)/len(time_send_msg_array), 2)
-    avg_time_pin_msg = round(sum(time_pin_msg_array)/len(time_pin_msg_array), 2)
-    time_spamming = round(time.time() - t_start, 2)
+    if count_send_msg > 0:
 
-    stat_message = f"Отправлено: {count_send_msg}\n " \
-                   f"Закреплено: {count_pin_msg}\n " \
-                   f"Среднее время отправки: {avg_time_send_msg}\n " \
-                   f"Среднее время закрепления: {avg_time_pin_msg}\n " \
-                   f"Общее время рассылки: {time_spamming}\n "
-    await dp.bot.send_message(GOD_ID, text=stat_message)
+        avg_time_send_msg = round(sum(time_send_msg_array)/len(time_send_msg_array), 2)
+        avg_time_pin_msg = round(sum(time_pin_msg_array)/len(time_pin_msg_array), 2)
+        time_spamming = round(time.time() - t_start, 2)
+
+        stat_message = f"Отправлено: {count_send_msg}\n " \
+                       f"Закреплено: {count_pin_msg}\n " \
+                       f"Среднее время отправки: {avg_time_send_msg}\n " \
+                       f"Среднее время закрепления: {avg_time_pin_msg}\n " \
+                       f"Общее время рассылки: {time_spamming}\n "
+        await dp.bot.send_message(GOD_ID, text=stat_message)
 
