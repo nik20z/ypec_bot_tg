@@ -1,8 +1,12 @@
+from aiogram.types import CallbackQuery
+import aiogram.utils.markdown as fmt
 from datetime import datetime, date, timedelta
 import requests
 
+from bot.config import CALL_SCHEDULE
 
-def month_translate(month_name):
+
+def month_translate(month_name: str):
     """Перевести короткое название месяца на русский язык"""
     month_d = {'jan': 'Январь',
                'feb': 'Февраль',
@@ -22,7 +26,7 @@ def month_translate(month_name):
     return month_d.get(month_name.lower())
 
 
-def get_week_day_name_by_id(wee_day_id, type_case="default", bold=True):
+def get_week_day_name_by_id(wee_day_id: int, type_case="default", bold=True):
     """Получить название дня недели по id"""
     week_array = {'default': ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
                   'genitive': ['понедельника', 'вторника', 'среды', 'четверга', 'пятницы', 'субботы'],
@@ -33,60 +37,99 @@ def get_week_day_name_by_id(wee_day_id, type_case="default", bold=True):
     return week_day_text
 
 
-def get_joined_text_by_list(array_, char_=' / '):
+def get_joined_text_by_list(array_: list, char_=' / '):
     return char_.join([x for x in array_ if x is not None])
 
 
 def get_message_timetable(name_: str,
-                          date_: str,
+                          date_str: str,
                           data_ready_timetable: list,
-                          start_text="Расписание на",
+                          start_text="Расписание на ",
                           view_name=True,
                           view_add=True,
                           view_time=False,
-                          check_lesson_type=False):
+                          formated=True):
     """Составить сообщение с расписанием"""
+    if not data_ready_timetable:
+        return f"Расписание для {name_}" \
+               f"\n" \
+               f"На {date_str} отсутствует"
 
-    add_name_text = f"{name_}\n" if view_name else ""
+    add_name_text = ""
+    num_lesson_array = []
 
-    text = f"{add_name_text}{start_text} {date_}\n"
+    if view_name:
+        """Если необходимо отображать name_"""
+        if formated:
+            add_name_text = f"<b>{name_}</b>\n"
+        else:
+            add_name_text = f"{name_}\n"
 
+    text = f"{add_name_text}{start_text}{date_str}\n"
+
+    """Перебираем массивы пар"""
     for one_line in data_ready_timetable:
         num = one_line[0]
         lesson_text = one_line[1][0]
         json_group_or_teacher_name_and_audience = one_line[2]
 
+        num_lesson_array.append(num)
+
         group_or_teacher_name = json_group_or_teacher_name_and_audience.keys()
         audience = json_group_or_teacher_name_and_audience.values()
 
-        num_text = num[0] if len(num) == 1 else f"{num[0]}-{num[-1]}"
-        group_or_teacher_name_text = get_joined_text_by_list(group_or_teacher_name)
-        audience_text = get_joined_text_by_list(audience)
+        # соединяем повторяющиеся пары
+        start_num = int(num[0])
+        stop_num = int(num[-1])
 
-        add_group_or_teacher_name_text = f"({group_or_teacher_name_text})" if view_add else ""
+        if len(num) > 1 and list(map(int, num)) == list(range(start_num, stop_num + 1)):
+            num = [f"{start_num}-{stop_num}"]
 
-        line_text = f"{num_text}) {lesson_text} {audience_text} {add_group_or_teacher_name_text}\n"
+        # перебираем номера пар
+        for num_text in num:
 
-        if check_lesson_type:
-            if one_line[3][0] or one_line[3][0] is None:
+            group_or_teacher_name_text = get_joined_text_by_list(group_or_teacher_name)
+            audience_text = get_joined_text_by_list(audience)
+
+            add_group_or_teacher_name_text = f"({group_or_teacher_name_text})" if view_add else ""
+
+            line_text = f"{num_text}) {lesson_text} {audience_text} {add_group_or_teacher_name_text}\n"
+
+            if not formated or one_line[3][0] is None:
+                """Если включено форматирование текста"""
                 text += line_text
             else:
-                text += f"<b>{line_text}</b>"
-        else:
-            text += line_text
+                if one_line[3][0]:
+                    """Если числитель"""
+                    text += fmt.hunderline(line_text)
+                else:
+                    """Если знаменатель"""
+                    text += fmt.hcode(line_text)  # hitalic
 
     if view_time:
-        text += ""
+        text += get_time_for_timetable(date_str, num_lesson_array)
 
     return text
 
 
-def get_time_for_timetable(start_num_les, stop_num_les):
+def get_time_for_timetable(date_str: str, num_lesson_array: list):
     """Получить время начала и окончания занятий"""
-    pass
+    num_lesson_array = [num for x in num_lesson_array for num in x]
+    start_num_les = min(num_lesson_array)
+    stop_num_les = max(num_lesson_array)
+
+    week_day_id = get_week_day_id_by_date_(date_str)
+    type_week_day = 'weekday' if week_day_id in range(6) else 'saturday'
+
+    times_week_day = CALL_SCHEDULE[type_week_day]
+
+    start_time = times_week_day.get(start_num_les)[0]
+    stop_time = times_week_day.get(stop_num_les)[-1]
+
+    return f"С {start_time} до {stop_time}"
 
 
-def check_call(callback, commands: list, ind=-1):
+def check_call(callback: CallbackQuery, commands: list, ind=-1):
     """Проверка вхождения команды в callback по индексу"""
     callback_data_split = callback.data.split()
     try:
@@ -95,7 +138,7 @@ def check_call(callback, commands: list, ind=-1):
         return False
 
 
-def get_callback_values(callback, last_ind: int):
+def get_callback_values(callback: CallbackQuery, last_ind: int):
     """Получить callback_data_split и last_callback_data с ограничением по индексу"""
     callback_data_split = callback.data.split()
     last_callback_data = ' '.join(callback_data_split[:last_ind])
@@ -128,7 +171,7 @@ def get_day_text(date_=None, days=0, delete_sunday=True, format_str="%d.%m.%Y"):
     return (date_ + timedelta(days=days)).strftime(format_str)
 
 
-def get_next_check_time(array_times: list, func_name):
+def get_next_check_time(array_times: list, func_name: str):
     """Расчет времени до следующего цикла в зависимости от названия функции"""
 
     delta = 0
@@ -193,7 +236,7 @@ def convert_timetable_to_dict(timetable: list):
     return timetable_d
 
 
-def get_rub_balance(login, api_access_token):
+def get_rub_balance(login: str, api_access_token: str):
     """Получить баланс QIWI Кошелька"""
     s = requests.Session()
     s.headers['Accept'] = 'application/json'
@@ -209,3 +252,17 @@ def get_rub_balance(login, api_access_token):
     rub_balance = rub_alias[0]['balance']['amount']
 
     return rub_balance
+
+
+def convert_lesson_name(lesson_name):
+    lesson_name = lesson_name.replace(' ,', ', ')
+
+    lesson_name = ', '.join(lesson_name.split(','))
+    lesson_name = ' '.join(lesson_name.split('('))
+
+    for key, val in {'.': '', ',': '', '2гр': '2 гр'}.items():
+        lesson_name = lesson_name.replace(key, val)
+
+    lesson_name = ' '.join(lesson_name.split())
+
+    return lesson_name.strip()

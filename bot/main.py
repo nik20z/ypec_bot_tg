@@ -7,6 +7,7 @@ from aiogram.types import BotCommand
 from aiogram.utils import executor
 
 import logging
+from loguru import logger
 
 # My Modules
 from bot.config import array_times
@@ -36,7 +37,8 @@ async def set_default_commands(dp: Dispatcher) -> None:
         BotCommand("start", "Запуск бота"),
         BotCommand("timetable", "Расписание"),
         BotCommand("settings", "Настройки"),
-        BotCommand("help", "Помощь")
+        BotCommand("help", "Помощь"),
+        BotCommand("show_keyboard", "Показать клавиатуру")
     ])
 
 
@@ -53,11 +55,14 @@ async def on_shutdown(dp: Dispatcher) -> None:
 
 
 def start_bot():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%H:%M:%S')
-    logging.getLogger(__name__)
+    logging.basicConfig(filename="bot/log/info.log",
+                        format='%(asctime)s - %(funcName)s - %(name)s - %(message)s',
+                        datefmt='%H:%M:%S',
+                        level=logging.INFO)
 
     Table.create()
     Table.create_view()
+    Table.check_main_timetable()
 
     bot = Bot(token=TgKeys.TOKEN, parse_mode='HTML')
     dp = Dispatcher(bot, storage=MemoryStorage())
