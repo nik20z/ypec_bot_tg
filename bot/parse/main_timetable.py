@@ -4,6 +4,7 @@ import time
 
 from bot.functions import get_full_link_by_part
 from bot.functions import get_correct_audience
+from bot.functions import convert_lesson_name
 
 from bot.parse.config import main_link_ypec
 from bot.parse.config import headers_ypec
@@ -116,6 +117,18 @@ class MainTimetable:
 
                 time.sleep(2)
 
+    def get_lesson_teacher_group_names(self, type_name, one_lesson):
+        if type_name == 'teacher':
+            lesson_name = one_lesson[-2]
+            teacher_or_group_name_split = [one_lesson[-3]]
+        else:
+            lesson_name = one_lesson[-3]
+            teacher_or_group_name_split = one_lesson[-2].split('/')
+
+        lesson_name = convert_lesson_name(lesson_name)
+
+        return lesson_name, teacher_or_group_name_split
+
     def table_handler(self,
                       url: str,
                       data_post: dict,
@@ -144,9 +157,9 @@ class MainTimetable:
             if table_soup is None:
                 return
 
+            # перебираем строки
             for tr in table_soup.find_all('tr')[1:]:
                 one_lesson = []
-                state_lesson = True
 
                 one_td_array = tr.find_all('td')
 
@@ -156,20 +169,13 @@ class MainTimetable:
                     one_td_array = one_td_array[1:]
 
                 for td in one_td_array:
-                    if td.get('bgcolor') == 'lime':
-                        state_lesson = False
                     one_lesson.append(td.text.strip())
 
                 num_lesson = one_lesson[0]
                 lesson_type = self.get_lesson_type(td)
                 audience_split = one_lesson[-1].split(',')
 
-                if type_name == 'teacher':
-                    lesson_name = one_lesson[-2].replace(' ,', ', ')
-                    teacher_or_group_name_split = [one_lesson[-3]]
-                else:
-                    lesson_name = one_lesson[-3].replace(' ,', ', ')
-                    teacher_or_group_name_split = one_lesson[-2].split('/')
+                [lesson_name, teacher_or_group_name_split] = self.get_lesson_teacher_group_names(type_name, one_lesson)
 
                 if not num_lesson[0].isdigit() or (len(num_lesson) > 2 and num_lesson[2].isalpha()):
                     num_lesson = last_num_lesson
@@ -181,19 +187,17 @@ class MainTimetable:
                     ind = -1
                     one_lesson_data = (name_,
                                        week_day_id,
-                                       state_lesson,
                                        lesson_type,
                                        num_lesson,
-                                       lesson_name.strip(),
+                                       lesson_name,
                                        teacher_or_group_name,
                                        audience)
                     if type_name == 'teacher':
                         one_lesson_data = (teacher_or_group_name,
                                            week_day_id,
-                                           state_lesson,
                                            lesson_type,
                                            num_lesson,
-                                           lesson_name.strip(),
+                                           lesson_name,
                                            name_,
                                            audience)
 

@@ -5,6 +5,7 @@ from bot.database import Select
 
 from bot.functions import get_full_link_by_part
 from bot.functions import get_correct_audience
+from bot.functions import convert_lesson_name
 
 from bot.parse.config import main_link_ypec
 from bot.parse.config import headers_ypec
@@ -50,15 +51,33 @@ class Replacements:
         self.date = date_text.split()[2]
         self.week_lesson_type = True if "числ" in date_text else False if "знам" in date_text else None
 
+    def get_replace_for_lesson(self, rep_lesson):
+        try:
+            replace_for_lesson = rep_lesson[0].upper() + rep_lesson[1:]
+        except IndexError:
+            replace_for_lesson = rep_lesson
+
+        replace_for_lesson = convert_lesson_name(replace_for_lesson)
+
+        return replace_for_lesson
+
+    def get_num_les_array(self, num_lesson):
+        if num_lesson.isdigit() or '-' in num_lesson:
+            start = int(num_lesson[0])
+            stop = int(num_lesson[-1])
+            num_les_array = list(range(start, stop + 1))
+        else:
+            num_les_array = [num_lesson]
+        return num_les_array
+
+    def get_teacher_names_array(self, one_lesson):
+        return one_lesson[-1].replace('. ', '.,').split(',')
+
+    def get_audience_array(self, one_lesson):
+        return one_lesson[-2].split(',')
+
     def parse(self, day='tomorrow'):
-        """Парсим замены и заносим данные в массив self.data
-
-            Параметры:
-                day (str): день, для которого необходимо спарсить замены
-
-            Возвращаемое значение:
-                None
-        """
+        """Парсим замены и заносим данные в массив self.data"""
         part_link = self.get_part_link_by_day(day)
         url = get_full_link_by_part(main_link_ypec, part_link)
 
@@ -104,21 +123,12 @@ class Replacements:
                 lesson_by_main_timetable = one_lesson[1]
                 rep_lesson = one_lesson[-3]
 
-                try:
-                    replace_for_lesson = rep_lesson[0].upper() + rep_lesson[1:]
-                except IndexError:
-                    replace_for_lesson = rep_lesson
+                replace_for_lesson = self.get_replace_for_lesson(rep_lesson)
+                audience_array = self.get_audience_array(one_lesson)
+                teacher_names_array = self.get_teacher_names_array(one_lesson)
+                num_les_array = self.get_num_les_array(num_lesson)
 
-                audience_array = one_lesson[-2].split(',')
-                teacher_names_array = one_lesson[-1].replace('. ', '.,').split(',')
-
-                if num_lesson.isdigit() or '-' in num_lesson:
-                    start = int(num_lesson[0])
-                    stop = int(num_lesson[-1])
-                    num_les_array = list(range(start, stop + 1))
-                else:
-                    num_les_array = [num_lesson]
-
+                """Перебираем номера пар"""
                 for num_lesson in num_les_array:
 
                     for teacher_name in teacher_names_array:
