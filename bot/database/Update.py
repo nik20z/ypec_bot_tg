@@ -2,7 +2,6 @@ from bot.database.connect import cursor, connection
 
 
 def user_settings(user_id: int, key: str, value: str, convert_val_text=True):
-
     query = "UPDATE telegram SET {0} = {1} WHERE user_id = {2}".format(key, value, user_id)
     if convert_val_text:
         query = "UPDATE telegram SET {0} = '{1}' WHERE user_id = {2}".format(key, value, user_id)
@@ -24,7 +23,6 @@ def user_settings_bool(user_id: int, name_: str):
 
 # занести в массив если не равно или удалить если равно
 def user_settings_value(user_id: int, name_: str, value: str, remove_=False):
-
     if remove_:
         query = """UPDATE telegram 
                     SET {1} = NULL
@@ -50,7 +48,6 @@ def user_settings_value(user_id: int, name_: str, value: str, remove_=False):
 # если remove is None, то не удалять, а только добавлять, если нет
 # если append is None, то не добавлять, а только удалять при наличии
 def user_settings_array(user_id: int, name_: str, value: str, remove_=False, append_=False):
-
     if remove_:
         query = """UPDATE telegram
                     SET {1}_ids = array_remove({1}_ids, {2}::smallint)
@@ -74,7 +71,14 @@ def user_settings_array(user_id: int, name_: str, value: str, remove_=False, app
                                                            value,
                                                            f"{name_}_ids" if remove_ is None else f"array_remove({name_}_ids, {value}::smallint)",
                                                            f"{name_}_ids" if append_ is None else f"array_append({name_}_ids, {value}::smallint)")
-
     cursor.execute(query)
     connection.commit()
     return cursor.fetchone()[0]
+
+
+def change_id(table_name, colomn_name, id_, new_id):
+    query = """UPDATE {0}
+               SET {1}_id = {3}
+               WHERE {1}_id = {2}""".format(table_name, colomn_name, id_, new_id)
+    cursor.execute(query)
+    connection.commit()

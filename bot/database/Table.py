@@ -1,10 +1,11 @@
 from bot.database.connect import cursor, connection
+from bot.database import Select
+from bot.parse.timetable_handler import TimetableHandler
 
 view_create_queries = {
     "main_timetable_info": """CREATE OR REPLACE VIEW main_timetable_info AS
                                     SELECT group__name, 
                                             week_day_id, 
-                                            state_lesson, 
                                             num_lesson,
                                             lesson_type,
                                             lesson_name,
@@ -62,7 +63,6 @@ table_create_queries = {
     "main_timetable": """CREATE TABLE IF NOT EXISTS main_timetable (
                                         group__id smallint REFERENCES group_ (group__id),
                                         week_day_id smallint,
-                                        state_lesson boolean DEFAULT True,
                                         num_lesson varchar(10),
                                         lesson_type boolean,
                                         lesson_name_id smallint REFERENCES lesson (lesson_id),
@@ -111,8 +111,15 @@ table_create_queries = {
     "config": """CREATE TABLE IF NOT EXISTS config (
                                         key_ text NOT NULL PRIMARY KEY,
                                         value_ text DEFAULT NULL);"""
-
 }
+
+'''
+"stat": """CREATE TABLE IF NOT EXISTS stat (
+                                        date_ date NOT NULL PRIMARY KEY,
+                                        new_users smallint,
+                                        count_requests integer
+                                        );"""
+'''
 
 
 def drop(table_name=None, cascade_state=False):
@@ -149,3 +156,8 @@ def delete(table_name=None):
     else:
         cursor.execute(f"DELETE FROM {table_name};")
         connection.commit()
+
+
+def check_main_timetable():
+    if not Select.check_filling_table("main_timetable"):
+        TimetableHandler().get_main_timetable(type_name="group_")

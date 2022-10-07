@@ -34,10 +34,11 @@ def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=T
             SELECT array_agg(DISTINCT num_lesson) AS num_les,
                    array_agg(DISTINCT lesson_name),
                    json_object_agg(DISTINCT COALESCE(NULLIF({1}_name, ''), '...'), audience_name),
-                   array_agg(lesson_type)
+                   array_agg(lesson_type) AS les_type
             FROM main_timetable_info
-            WHERE {0}_name = '{2}' AND week_day_id = {3} AND state_lesson AND (lesson_type ISNULL OR {4})
+            WHERE {0}_name = '{2}' AND week_day_id = {3} AND (lesson_type ISNULL OR {4})
             GROUP BY num_lesson, {1}_name
+            ORDER BY num_les, les_type DESC
             """.format(type_name,
                        type_name_invert,
                        name_,
@@ -48,7 +49,7 @@ def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=T
 
 
 def main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
-    """"""
+    """Получаем расписание для объединения с заменами"""
     type_name_invert = get_type_name_invert(type_name)
     query = """
             SELECT num_lesson,
@@ -56,7 +57,7 @@ def main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
                    array_agg({1}_name),
                    array_agg(audience_name)
             FROM main_timetable_info
-            WHERE {0}_name = '{2}' AND week_day_id = {3} AND state_lesson AND (lesson_type ISNULL OR {4})
+            WHERE {0}_name = '{2}' AND week_day_id = {3} AND (lesson_type ISNULL OR {4})
             GROUP BY num_lesson, lesson_name
             """.format(type_name,
                        type_name_invert,
@@ -91,7 +92,8 @@ def ready_timetable(type_name: str, date_: str, name_: str):
     query = """
             SELECT array_agg(DISTINCT num_lesson) AS num_les,
                    array_agg(DISTINCT COALESCE(NULLIF(lesson_name, ''), '...')),
-                   json_object_agg(DISTINCT COALESCE(NULLIF({0}_name, ''), '...'), audience_name)
+                   json_object_agg(DISTINCT COALESCE(NULLIF({0}_name, ''), '...'), audience_name),
+                   ARRAY[NULL]
             FROM ready_timetable_info
             WHERE date_ = '{2}' AND {1}_name = '{3}'
             GROUP BY lesson_name, {0}_name, audience_name
