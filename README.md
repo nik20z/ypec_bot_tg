@@ -9,6 +9,9 @@
 
 [![https://telegram.me/ypec_bot](https://img.shields.io/badge/💬%20Telegram-Channel-blue.svg?style=flat-square)](https://telegram.me/ypec_bot)
 
+![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+
 ## Описание
 
 [Телеграм Бот](https://t.me/ypec_bot "ypec_bot") - это неофициальный бот колледжа [ЯПЭК](https://www.ypec.ru "ypec.ru"). Основная его функция - ежедневная рассылка расписания, а также отслеживание изменений в заменах в течение дня. 
