@@ -37,6 +37,7 @@ sudo -i -u postgres
 
 pip3 install aiogram
 pip3 install beautifulsoup4
+pip3 install loguru
 pip3 install lxml
 pip3 install psycopg2-binary
 pip3 install requests
