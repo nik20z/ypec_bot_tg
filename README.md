@@ -1,6 +1,8 @@
 
 <h1 align="center">YPEC Bot</h1>
 
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=1000&width=435&lines=Telegram+bot+%D0%BA%D0%BE%D0%BB%D0%BB%D0%B5%D0%B4%D0%B6%D0%B0+%D0%AF%D0%9F%D0%AD%D0%9A" alt="Typing SVG" /></a>
+
 <p align="center">
 <img src="https://img.shields.io/github/stars/nik20z/hltv_bot">
 <img src="https://img.shields.io/github/issues/nik20z/hltv_bot">
@@ -13,11 +15,8 @@
 ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 
-[![GitHub Streak](http://github-readme-streak-stats.herokuapp.com?user=nik20z&theme=dark)](https://git.io/streak-stats)
-
 ## Описание
 
-[Телеграм Бот](https://t.me/ypec_bot "ypec_bot") - это неофициальный бот колледжа [ЯПЭК](https://www.ypec.ru "ypec.ru"). Основная его функция - ежедневная рассылка расписания, а также отслеживание изменений в заменах в течение дня. 
 
 
 ## Порядок установки на VPS
