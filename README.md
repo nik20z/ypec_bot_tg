@@ -55,6 +55,3 @@ systemctl status ypec_bot
   <img src="https://user-images.githubusercontent.com/62090150/193757014-4e816ff4-e524-4d3d-a0f9-5d64701e9ec0.png">
 </p>
 
-
-![ypec_bot for github](https://user-images.githubusercontent.com/62090150/194729564-f26e1984-7dc8-410e-b8d3-670e9ebf739e.gif)
-
