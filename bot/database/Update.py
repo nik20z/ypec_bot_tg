@@ -1,7 +1,7 @@
 from bot.database.connect import cursor, connection
 
 
-def user_settings(user_id: int, key: str, value: str, convert_val_text=True):
+def user_settings(user_id: int, key: str, value: str, convert_val_text: object = True):
     query = "UPDATE telegram SET {0} = {1} WHERE user_id = {2}".format(key, value, user_id)
     if convert_val_text:
         query = "UPDATE telegram SET {0} = '{1}' WHERE user_id = {2}".format(key, value, user_id)

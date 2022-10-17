@@ -2,12 +2,26 @@ from bs4 import BeautifulSoup
 import requests
 import time
 
-from bot.functions import get_full_link_by_part
-from bot.functions import get_correct_audience
-from bot.functions import convert_lesson_name
+from bot.parse.functions import get_full_link_by_part
+from bot.parse.functions import get_correct_audience
+from bot.parse.functions import convert_lesson_name
 
 from bot.parse.config import main_link_ypec
 from bot.parse.config import headers_ypec
+
+
+def get_lesson_teacher_group_names(type_name, one_lesson):
+    """Получить данные о паре и группе/преподавателях"""
+    if type_name == 'teacher':
+        lesson_name = one_lesson[-2]
+        teacher_or_group_name_split = [one_lesson[-3]]
+    else:
+        lesson_name = one_lesson[-3]
+        teacher_or_group_name_split = one_lesson[-2].split('/')
+
+    lesson_name = convert_lesson_name(lesson_name)
+
+    return lesson_name, teacher_or_group_name_split
 
 
 class MainTimetable:
@@ -117,18 +131,6 @@ class MainTimetable:
 
                 time.sleep(2)
 
-    def get_lesson_teacher_group_names(self, type_name, one_lesson):
-        if type_name == 'teacher':
-            lesson_name = one_lesson[-2]
-            teacher_or_group_name_split = [one_lesson[-3]]
-        else:
-            lesson_name = one_lesson[-3]
-            teacher_or_group_name_split = one_lesson[-2].split('/')
-
-        lesson_name = convert_lesson_name(lesson_name)
-
-        return lesson_name, teacher_or_group_name_split
-
     def table_handler(self,
                       url: str,
                       data_post: dict,
@@ -175,7 +177,7 @@ class MainTimetable:
                 lesson_type = self.get_lesson_type(td)
                 audience_split = one_lesson[-1].split(',')
 
-                [lesson_name, teacher_or_group_name_split] = self.get_lesson_teacher_group_names(type_name, one_lesson)
+                [lesson_name, teacher_or_group_name_split] = get_lesson_teacher_group_names(type_name, one_lesson)
 
                 if not num_lesson[0].isdigit() or (len(num_lesson) > 2 and num_lesson[2].isalpha()):
                     num_lesson = last_num_lesson

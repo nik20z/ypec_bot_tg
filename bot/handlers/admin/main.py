@@ -4,13 +4,15 @@ import time
 from aiogram import Dispatcher
 from aiogram.types import Message
 from aiogram.dispatcher.filters import IDFilter
-from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.utils.exceptions import BotBlocked
+from aiogram.utils.exceptions import MessageTextIsEmpty
 
 # My modules
 from bot.config import GOD_ID, ADMINS
 from bot.config import ANSWER_TEXT
 from bot.database import Insert
+from bot.database import Update
+from bot.database import Select
 from bot.database import Delete
 from bot.functions import get_rub_balance
 # from bot.spamming import check_replacement
@@ -23,29 +25,47 @@ async def help_admin(message: Message):
     await message.answer(ANSWER_TEXT["help_admin"])
 
 
+async def mailing_test_start(message: Message):
+    """Тест рассылки"""
+    try:
+        await message.bot.send_message(GOD_ID, text=message.get_args())
+    except MessageTextIsEmpty:
+        await message.bot.send_message(GOD_ID, text="MessageTextIsEmpty")
+
+
 async def mailing_start(message: Message):
-    """"""
-    # ADMINS
+    """Рассылка сообщений """
     count = 0
     count_success = 0
-    user_ids = open("bot/ypec_bot_old_users.txt")
+    user_ids = Select.user_ids()
     sending_message = message.get_args()
 
-    for user_id in user_ids:
-        count += 1
-        try:
-            #await message.bot.send_message(user_id, text=sending_message)
-            count_success += 1
-        except BotBlocked:
-            pass
+    try:
+        for user_id in user_ids:
+            count += 1
+            try:
+                await message.bot.send_message(user_id, text=sending_message)
+                count_success += 1
+            except BotBlocked:
+                await message.bot.send_message(GOD_ID, text=f"BotBlocked: {user_id}")
+                Update.user_settings(int(user_id), 'bot_blocked', 'True', convert_val_text=False)
 
-    text = f"Успешно: {count_success}\nНеудачно: {count - count_success}\nВсего user_ids: {count}"
-    await message.bot.send_message(GOD_ID, text=text)
+        text = f"Успешно: {count_success}\nНеудачно: {count - count_success}\nВсего: {count}"
+        await message.bot.send_message(GOD_ID, text=text)
+
+    except MessageTextIsEmpty:
+        await message.bot.send_message(GOD_ID, text="MessageTextIsEmpty")
 
 
 async def delete_user(message: Message):
     """Удаляем себя из таблицы telegram"""
     Delete.user(message.chat.id)
+
+
+async def set_future_updates(message: Message):
+    text = message.get_args()
+    Insert.config("future_updates", text)
+    await message.answer(text)
 
 
 async def get_main_timetable(message: Message):
@@ -99,6 +119,27 @@ async def error_log(message: Message):
 '''
 
 
+async def create_statistics(message: Message):
+    """Создание отчета"""
+    text = ""
+
+    text += "Топ 10 подписок\n"
+    for data_ in Select.count_subscribe_by_type_name("group_")[:10]:
+        [name_, count_subscribe] = data_
+        text += f"{name_[0]} {count_subscribe}\n"
+
+    """
+    text += "\nГрафик роста аудитории\n"
+    for data_ in Select.count_all_users_by_dates():
+        [joined, count_subscribe] = data_
+        text += f"{joined[0].strftime('%d.%m.%Y')} {count_subscribe}\n"
+    """
+
+    text += f"\nВсего юзеров: {Select.count_row_by_table_name('telegram')}"
+
+    await message.answer(text)
+
+
 def register_admin_handlers(dp: Dispatcher):
     # todo: register all admin handlers
 
@@ -106,13 +147,21 @@ def register_admin_handlers(dp: Dispatcher):
                                 IDFilter(chat_id=ADMINS),
                                 commands=['help_admin'])
 
+    dp.register_message_handler(mailing_test_start,
+                                IDFilter(chat_id=ADMINS),
+                                commands=['mailing_test'])
+
     dp.register_message_handler(mailing_start,
                                 IDFilter(chat_id=ADMINS),
-                                commands=['mailing'])
+                                commands=['mailing', 'mailing_test'])
 
     dp.register_message_handler(delete_user,
                                 IDFilter(chat_id=ADMINS),
                                 commands=['delete_user'])
+
+    dp.register_message_handler(set_future_updates,
+                                IDFilter(chat_id=ADMINS),
+                                commands=['set_future_updates'])
 
     dp.register_message_handler(get_main_timetable,
                                 IDFilter(chat_id=ADMINS),
@@ -138,9 +187,12 @@ def register_admin_handlers(dp: Dispatcher):
                                 IDFilter(chat_id=ADMINS),
                                 commands=['info_log'])
 
+    dp.register_message_handler(create_statistics,
+                                IDFilter(chat_id=ADMINS),
+                                commands=['test'])
+
     '''
     .register_message_handler(error_log,
                                 IDFilter(chat_id=ADMINS),
                                 commands=['error_log'])
     '''
-

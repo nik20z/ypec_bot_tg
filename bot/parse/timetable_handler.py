@@ -4,7 +4,8 @@ from bot.database import Select
 
 from bot.functions import get_day_text
 from bot.functions import get_week_day_id_by_date_
-from bot.functions import convert_timetable_to_dict
+from bot.parse.functions import convert_timetable_to_dict
+from bot.parse.functions import convert_lesson_name
 
 from bot.parse import MainTimetable
 from bot.parse import Replacements
@@ -41,12 +42,12 @@ class TimetableHandler:
         self.mt = MainTimetable()
         self.rep = Replacements()
 
-        self.group__names = Select.all_info("group_", colomn_name="group__name")
+        self.group__names = Select.all_info("group_", column_name="group__name")
         if not self.group__names:
             self.group__names = self.mt.get_array_names_by_type_name('group_')
             Insert.group_(self.mt.group__names)
 
-        self.teacher_names = Select.all_info("teacher", colomn_name="teacher_name")
+        self.teacher_names = Select.all_info("teacher", column_name="teacher_name")
         if not self.teacher_names:
             self.teacher_names = self.mt.get_array_names_by_type_name('teacher')
             Insert.teacher(self.mt.teacher_names)
@@ -55,7 +56,6 @@ class TimetableHandler:
 
     def get_main_timetable(self, type_name=None, names=None):
         """Получаем основное расписание"""
-
         if names is None:
             names = []
 
@@ -121,7 +121,7 @@ class TimetableHandler:
             names_array = []
 
         if date_ is None:
-            date_ = get_day_text(days=1)
+            date_ = self.date_replacement
 
         week_day_id = get_week_day_id_by_date_(date_)
 
@@ -178,7 +178,6 @@ class TimetableHandler:
             timetable_dict = convert_timetable_to_dict(timetable)
 
             last_num_lesson = None
-            # last_name = None
 
             for rep_val in replacement:
                 """Перебираем строчки с заменами"""
@@ -190,7 +189,7 @@ class TimetableHandler:
                 rep_audience_array = rep_val[4]
 
                 if num_lesson in timetable_dict:
-                    """Если номер замены есть в оосновном расписании"""
+                    """Если номер замены есть в основном расписании"""
 
                     """Перебираем все пары для определённого номера пары"""
                     for les in timetable_dict[num_lesson]:
@@ -201,32 +200,50 @@ class TimetableHandler:
 
                         if 'по расписанию' in replace_for_lesson.lower():
                             """Обработчик ---по расписанию---"""
+                            # учесть ситуацию, когда в основном расписании нет преподов, но он указан в заменах
 
                             if rep_name in name_array:
                                 """Если есть совпадение с преподавателем"""
+                                teacher_ind = name_array.index(rep_name)
 
-                                if rep_name == name_array[ind]:
-                                    """Если для данной пары есть"""
-                                    timetable_dict[num_lesson][ind][-3] += \
-                                        replace_for_lesson.lower().split('по расписанию')[-1]
-                                    # timetable_dict[num_lesson][ind][-2] = [rep_name]
-                                    timetable_dict[num_lesson][ind][-1] = rep_audience_array
-
-                            # учесть ситуацию, когда предмет не меняется, но меняется препод!!!!
-                            # учесть ситуацию, когда в основном расписании нет преподов, но он указан в заменах
-
-                            elif list(set(name_array)) == [None]:
-                                """Если в оснвоном расписании не указан преподаватель"""
-                                timetable_dict[num_lesson] = [[timetable_dict[num_lesson][ind][-3],
-                                                               [rep_name],
-                                                               rep_audience_array]]
+                                additional_info = replace_for_lesson.lower().split('по расписанию')[-1]
+                                timetable_dict[num_lesson][ind][-3] += ' ' + convert_lesson_name(additional_info)
+                                timetable_dict[num_lesson][ind][-1][teacher_ind] = rep_audience_array[0]
 
                             elif rep_name is None:
-                                """Если в заменах не указан преподаватель """
+                                """Если в заменах не указан преподаватель"""
                                 timetable_dict[num_lesson][ind][-1] = rep_audience_array
 
+                            else:
+                                """Если прошли все условия, то добавляем пару как есть"""
+
+                                if last_num_lesson == num_lesson:
+                                    """Если уже редактировали пару с таким же номером"""
+
+                                    if None in name_array:
+                                        """Удаляем учителя None и еду аудиторию при наличии"""
+                                        ind_none = timetable_dict[num_lesson][ind][-2].index(None)
+                                        try:
+                                            timetable_dict[num_lesson][ind][-2].pop(ind_none)
+                                            timetable_dict[num_lesson][ind][-1].pop(ind_none)
+                                        except IndexError:
+                                            pass
+
+                                    for rep_audience in rep_audience_array:
+                                        """Перебираем аудитории и добавляем инфу об учителе"""
+                                        timetable_dict[num_lesson][ind][-2].append(rep_name)
+                                        timetable_dict[num_lesson][ind][-1].append(rep_audience)
+                                else:
+
+                                    if len(timetable_dict[num_lesson]) == 1:
+                                        """Если изменился преподаватель у пары и она одна, то обновляем инфу о новом учителе и кабинете"""
+                                        timetable_dict[num_lesson][ind][-2] = [rep_name]
+                                        timetable_dict[num_lesson][ind][-1] = rep_audience_array
+                                    else:
+                                        pass
+
                         elif replace_for_lesson.strip().lower() == 'нет':
-                            """Если пару отменили"""
+                            """Обработчик ---нет---"""
 
                             if len(name_array) == 1 and last_num_lesson != num_lesson:
                                 """Если пару ведёт один преподаватель и номер в прошлой итерации не равен текущему номеру пары"""
@@ -236,14 +253,15 @@ class TimetableHandler:
                             else:
                                 '''
                                 это развилка для ситуаций, когда в заменах одна пара по расписанию, а другая отменяется
-                                проблема моего костыля в том, что при мелейшей ошибке - код не сработает :(
+                                проблема моего костыля в том, что при малейшей ошибке - код не сработает :(
                                 '''
 
                                 if lesson_by_main_timetable in timetable_dict[num_lesson][ind][-3].lower():
                                     del timetable_dict[num_lesson][ind]
 
                         else:
-                            """Все остальные случаи"""
+                            """Обработчик ---остальные случаи---"""
+
                             new_lesson_info = [replace_for_lesson, [rep_name], rep_audience_array]
 
                             if last_num_lesson == num_lesson:
@@ -255,8 +273,6 @@ class TimetableHandler:
 
                             break
 
-                    # last_name = rep_name
-
                 else:
                     # бывают случаи, когда в основном расписании только одна пара, а в заменах "по расписанию"
                     # указаны 2 пары
@@ -264,6 +280,11 @@ class TimetableHandler:
                     # НУЖНО УЧЕСТЬ, ВОЗМОЖНОСТЬ НЕКОРРЕКТНОЙ РАБОТЫ МОДУЛЯ ОБРАБОТКИ "нет"
                     if replace_for_lesson.strip().lower() != 'нет':
                         """Если пара не отменяется, то добавляем её как новую"""
+
+                        if num_lesson == '' and num_lesson != last_num_lesson:
+                            """Если нет номера пары (практика и тд), тор удаляем все пары и заносим только замены"""
+                            timetable_dict = {}
+
                         timetable_dict[num_lesson] = [[replace_for_lesson, [rep_name], rep_audience_array]]
 
                 last_num_lesson = num_lesson
@@ -282,6 +303,7 @@ class TimetableHandler:
                 for teacher_name in teacher_name_array:
                     ind = teacher_name_array.index(teacher_name)
 
+                    # Необходимо явно вычислять индекс
                     if len(audience_array) == 1:
                         ind = 0
                     audience = audience_array[ind]

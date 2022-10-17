@@ -110,16 +110,15 @@ table_create_queries = {
 
     "config": """CREATE TABLE IF NOT EXISTS config (
                                         key_ text NOT NULL PRIMARY KEY,
-                                        value_ text DEFAULT NULL);"""
-}
+                                        value_ text DEFAULT NULL);""",
 
-'''
-"stat": """CREATE TABLE IF NOT EXISTS stat (
+    "stat": """CREATE TABLE IF NOT EXISTS stat (
                                         date_ date NOT NULL PRIMARY KEY,
                                         new_users smallint,
-                                        count_requests integer
+                                        cnt_requests_callback integer,
+                                        cnt_requests_message integer
                                         );"""
-'''
+}
 
 
 def drop(table_name=None, cascade_state=False):

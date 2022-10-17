@@ -9,9 +9,11 @@ def get_type_name_invert(type_name: str):
 
 def check_none(func):
     """Обработчик None-значений"""
+
     def wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
         return None if not result else result[0]
+
     return wrapper
 
 
@@ -29,6 +31,7 @@ def check_filling_table(table_name: str) -> object:
 def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
     """Получить данные по основному расписанию в готовом виде"""
     type_name_invert = get_type_name_invert(type_name)
+    state_lesson_type = 'lesson_type' if lesson_type else "True" if lesson_type is None else 'NOT lesson_type'
 
     query = """
             SELECT array_agg(DISTINCT num_lesson) AS num_les,
@@ -43,7 +46,7 @@ def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=T
                        type_name_invert,
                        name_,
                        week_day_id,
-                       'lesson_type' if lesson_type else "True" if lesson_type is None else 'NOT lesson_type')
+                       state_lesson_type)
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -51,6 +54,8 @@ def view_main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=T
 def main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
     """Получаем расписание для объединения с заменами"""
     type_name_invert = get_type_name_invert(type_name)
+    state_lesson_type = 'lesson_type' if lesson_type else "True" if lesson_type is None else 'NOT lesson_type'
+
     query = """
             SELECT num_lesson,
                    array_agg(DISTINCT lesson_name),
@@ -63,7 +68,7 @@ def main_timetable(type_name: str, name_: str, week_day_id=0, lesson_type=True):
                        type_name_invert,
                        name_,
                        week_day_id,
-                       'lesson_type' if lesson_type else "True" if lesson_type is None else 'NOT lesson_type')
+                       state_lesson_type)
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -81,7 +86,9 @@ def replacement(type_name: str, name_: str):
             WHERE {0}_name = '{2}'
             GROUP BY num_lesson, replace_for_lesson, teacher_name
             ORDER BY num_lesson, case when replace_for_lesson ILIKE '%расписан%' then 0 else 1 end
-            """.format(type_name, type_name_invert, name_)
+            """.format(type_name,
+                       type_name_invert,
+                       name_)
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -98,7 +105,10 @@ def ready_timetable(type_name: str, date_: str, name_: str):
             WHERE date_ = '{2}' AND {1}_name = '{3}'
             GROUP BY lesson_name, {0}_name, audience_name
             ORDER BY num_les
-            """.format(reverse_type_name, type_name, date_, name_)
+            """.format(reverse_type_name,
+                       type_name,
+                       date_,
+                       name_)
 
     #  AND {0}_name IS NOT NULL
 
@@ -119,14 +129,18 @@ def query_info_by_name(table_name: str, info='id', default_method=False, value=N
                     FROM {0}
                     WHERE {0}_name = %s""".format(table_name, info)
     else:
-        query = """WITH similari AS (SELECT {0}_{1}, 
+        query = """WITH similari AS (SELECT {0}_id,
+                                            {0}_name,
                                             similarity({0}_name, %s::varchar) AS similari_value
                                     FROM {0})
                     SELECT {0}_{1}
                     FROM similari
                     WHERE similari_value > {2}
-                    ORDER BY similari_value DESC
-                    LIMIT 1""".format(table_name, info, similari_value)
+                    ORDER BY similari_value DESC, similari.{0}_name
+                    LIMIT 1
+                    """.format(table_name,
+                               info,
+                               similari_value)
     if value is not None:
         cursor.execute(query, (value,))
         result = concert_fetchall_to_list(cursor.fetchall())
@@ -152,22 +166,25 @@ def user_info(user_id: int):
                         view_add, 
                         view_time
                 FROM telegram
-                WHERE user_id = {0}""".format(user_id)
+                WHERE user_id = {0}
+                """.format(user_id)
     cursor.execute(query)
     return cursor.fetchone()
 
 
-def user_info_by_colomn_names(user_id: int, colomn_names=None):
+def user_info_by_column_names(user_id: int, column_names=None):
     """Данные о пользователе по конкретным колонкам"""
-    if colomn_names is None:
-        colomn_names = ["CASE WHEN type_name THEN 'group_' WHEN not type_name THEN 'teacher' ELSE NULL END",
+    if column_names is None:
+        column_names = ["CASE WHEN type_name THEN 'group_' WHEN not type_name THEN 'teacher' ELSE NULL END",
                         "name_id",
                         "view_name",
                         "view_add",
                         "view_time"]
     query = """SELECT {1}
                 FROM telegram
-                WHERE user_id = {0}""".format(user_id, ', '.join(colomn_names))
+                WHERE user_id = {0}
+                """.format(user_id,
+                           ', '.join(column_names))
     cursor.execute(query)
     return cursor.fetchone()
 
@@ -195,23 +212,26 @@ def courses_and_group__name_array():
                     array_agg(group__name ORDER BY group__name)
                 FROM group_
                 GROUP BY course_year
-                ORDER BY course_year DESC"""
+                ORDER BY course_year DESC
+                """
     cursor.execute(query)
     return cursor.fetchall()
 
 
 def group_():
+    """"""
     query = """SELECT json_object_agg(group__id, 
                                       group__name ORDER BY group__name) 
                 FROM group_ 
-                GROUP BY substring(group__name from 1 for 2)"""
+                GROUP BY substring(group__name from 1 for 2)
+                """
     cursor.execute(query)
     return cursor.fetchall()[::-1]
 
 
-def all_info(table_name: str, colomn_name="group__name"):
+def all_info(table_name: str, column_name="group__name"):
     """Получить массив всех строчек по одной колонке"""
-    query = """SELECT {1} FROM {0}""".format(table_name, colomn_name)
+    query = """SELECT {1} FROM {0}""".format(table_name, column_name)
     cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
 
@@ -224,18 +244,20 @@ def teacher(columns=['teacher_id', 'teacher_name']):
 
 
 @check_none
-def value_by_id(table_name_: str, colomn_names: list, id_: str, check_id_name_colomn: str):
+def value_by_id(table_name_: str, column_names: list, id_: str, check_id_name_column: str):
     """Получить конкретный параметр: указывается Таблица, Название колонки, Значение, Название колонки"""
-    query = "SELECT {1} FROM {0} WHERE {2} = %s".format(table_name_, ', '.join(colomn_names), check_id_name_colomn)
+    query = "SELECT {1} FROM {0} WHERE {2} = %s".format(table_name_, ', '.join(column_names), check_id_name_column)
     cursor.execute(query, (id_,))
     return cursor.fetchone()
 
 
 @check_none
 def name_by_id(type_name, name_id):
+    """Получить название группы или преподавателя по id"""
     query = "SELECT {0}_name FROM {0} WHERE {0}_id = {1}".format(type_name, name_id)
     cursor.execute(query)
     return cursor.fetchone()
+
 
 @check_none
 def config(value_: str):
@@ -247,7 +269,21 @@ def config(value_: str):
 
 def names_rep_different(type_name: str):
     """Получить id group_|teacher, расписание для которых различаются в таблицах replacement и replacement_temp"""
+    spam_ids = []
     type_name_invert = get_type_name_invert(type_name)
+
+    # Массив name_id из таблиц replacement
+    cursor.execute("""SELECT DISTINCT {0}_id FROM replacement""".format(type_name))
+    replacement_name_id_array = concert_fetchall_to_list(cursor.fetchall())
+
+    # Массив name_id из таблиц replacement_temp
+    cursor.execute("""SELECT DISTINCT {0}_id FROM replacement_temp""".format(type_name))
+    replacement_temp_name_id_array = concert_fetchall_to_list(cursor.fetchall())
+
+    # Проверка на добавление/удаление групп и преподавателей из таблицы замен
+    spam_ids.extend([x for x in replacement_name_id_array if x not in replacement_temp_name_id_array])
+    spam_ids.extend([x for x in replacement_temp_name_id_array if x not in replacement_name_id_array])
+
     query = """WITH rep_grouping AS (SELECT {0}_id, json_object_agg(num_lesson, 
                                                                     ARRAY[replace_for_lesson, 
                                                                           {1}_id::text, audience_id::text]
@@ -269,27 +305,36 @@ def names_rep_different(type_name: str):
                 SELECT rep_grouping.{0}_id
                 FROM rep_grouping
                 LEFT JOIN rep_temp_grouping ON rep_grouping.{0}_id = rep_temp_grouping.{0}_id
-                WHERE rep_grouping::text != rep_temp_grouping::text""".format(type_name, type_name_invert)
+                WHERE rep_grouping::text != rep_temp_grouping::text 
+                """.format(type_name,
+                           type_name_invert)
     cursor.execute(query)
-    return concert_fetchall_to_list(cursor.fetchall())
+    spam_ids.extend(concert_fetchall_to_list(cursor.fetchall()))
+    return spam_ids
 
 
 def user_ids_telegram_by(type_name: str, name_id: int):
     """Получить список пользователей, которые подписаны на рассылку"""
     query = """SELECT user_id, pin_msg, view_name, view_add, view_time 
                FROM telegram 
-               WHERE {1} = ANY(spam_{0}_ids) AND spamming""".format(type_name, name_id)
+               WHERE {1} = ANY(spam_{0}_ids) AND spamming
+               """.format(type_name,
+                          name_id)
     cursor.execute(query)
     return cursor.fetchall()
 
 
-def dates_ready_timetable(month: str, type_sort='DESC'):
+def dates_ready_timetable(month=None, type_name=None, name_id=None, type_sort='DESC'):
     """Список дат с готовым расписанием для определённого месяца"""
     query = """SELECT DISTINCT date_
                FROM ready_timetable
-               WHERE to_char(date_, 'Mon') = %s
-               ORDER BY date_ {0}""".format(type_sort)
-    cursor.execute(query, (month, ))
+               WHERE to_char(date_, 'Mon') = '{0}' AND {1}_id = {2}
+               ORDER BY date_ {3}
+               """.format(month,
+                          type_name,
+                          name_id,
+                          type_sort)
+    cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
 
 
@@ -299,3 +344,44 @@ def months_ready_timetable():
                FROM ready_timetable"""
     cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
+
+
+def user_ids():
+    """Массив id пользователей"""
+    query = "SELECT user_id FROM telegram"
+    cursor.execute(query)
+    return concert_fetchall_to_list(cursor.fetchall())
+
+
+def count_subscribe_by_type_name(type_name: str):
+    """Получить информацию о количестве подписок по группам и преподам"""
+    state_type_name = "NOT" if type_name == "teacher" else ""
+    query = """SELECT array_agg(DISTINCT {1}.{1}_name), 
+                      COUNT(name_id) AS count_user
+               FROM telegram
+               LEFT JOIN {1} ON name_id = {1}.{1}_id
+               WHERE {0} type_name
+               GROUP BY name_id
+               ORDER BY count_user DESC
+               """.format(state_type_name, type_name)
+    cursor.execute(query)
+    return cursor.fetchall()
+
+
+def count_row_by_table_name(table_name: str):
+    """Общее количество пользователей"""
+    query = "SELECT COUNT(*) FROM {0}".format(table_name)
+    cursor.execute(query)
+    return cursor.fetchone()[0]
+
+
+def count_all_users_by_dates():
+    """Количество новых пользователей по датам"""
+    query = """SELECT array_agg(DISTINCT joined) AS date_, 
+                      COUNT(user_id)
+               FROM telegram
+               GROUP BY joined
+               ORDER BY date_
+               """
+    cursor.execute(query)
+    return cursor.fetchall()

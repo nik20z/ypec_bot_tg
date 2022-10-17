@@ -11,7 +11,10 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import aiogram.utils.markdown as fmt
 
+from datetime import datetime
 from io import StringIO
+from loguru import logger
+import random
 
 from bot.database import Select
 from bot.database import Insert
@@ -19,28 +22,26 @@ from bot.database import Update
 
 from bot.config import ANSWER_TEXT
 from bot.config import ANSWER_CALLBACK
+from bot.config import ADMINS
 
 from bot.keyboards import Inline
 from bot.keyboards import Reply
 
-from bot.functions import get_message_timetable
-from bot.functions import check_call
-from bot.functions import get_callback_values
-from bot.functions import colomn_name_by_callback
-from bot.functions import get_day_text
+from bot.message_timetable import MessageTimetable
+
 from bot.functions import get_week_day_name_by_id
 from bot.functions import month_translate
+
+from bot.handlers.functions import check_call
+from bot.handlers.functions import get_callback_values
+from bot.handlers.functions import column_name_by_callback
+
 
 from bot.throttling import rate_limit
 
 
 class UserStates(StatesGroup):
-    """Класс состояний пользователя
-
-    choise_type_name -- состояние выбора типа профиля (студент/преподаватель)
-    choise_name -- выбор названия группы или преподавателя
-
-    """
+    """Класс состояний пользователя"""
     choise_type_name = State()
     choise_name = State()
 
@@ -65,15 +66,7 @@ async def new_user(message: Message, state: FSMContext):
     await state.update_data(send_help_message=True)
     await choise_type_name(message, text=text)
 
-
-async def choise_type_name(message: Message, text=None):
-    """Выбор типа профиля"""
-    if text is None:
-        text = ANSWER_TEXT["new_user"]["choise_type_name"]
-    keyboard = Inline.type_names()
-
-    await message.answer(text, reply_markup=keyboard)
-    await UserStates.choise_type_name.set()
+    logger.info(f"{user_id} | {user_name}")
 
 
 async def choise_group__name(callback: CallbackQuery, course=1):
@@ -89,6 +82,7 @@ async def choise_group__name(callback: CallbackQuery, course=1):
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
     await UserStates.choise_name.set()
+    logger.info(f"{user_id}")
 
 
 async def paging_group__list_state(callback: CallbackQuery):
@@ -98,6 +92,7 @@ async def paging_group__list_state(callback: CallbackQuery):
 
 async def paging_group__list(callback: CallbackQuery, last_ind=-2, add_back_button=True):
     """Обработчик листания списка групп"""
+    user_id = callback.message.chat.id
     last_callback_data = ' '.join(callback.data.split()[:last_ind])
     course = int(callback.data.split()[-1])
 
@@ -111,6 +106,7 @@ async def paging_group__list(callback: CallbackQuery, last_ind=-2, add_back_butt
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {course}")
 
 
 async def choise_teacher_name(callback: CallbackQuery):
@@ -126,6 +122,7 @@ async def choise_teacher_name(callback: CallbackQuery):
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
     await UserStates.choise_name.set()
+    logger.info(f"{user_id}")
 
 
 async def paging_teacher_list_state(callback: CallbackQuery):
@@ -135,6 +132,7 @@ async def paging_teacher_list_state(callback: CallbackQuery):
 
 async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_button=True):
     """Обработчик листания списка преподавателей"""
+    user_id = callback.message.chat.id
     last_callback_data = ' '.join(callback.data.split()[:last_ind])
     start_ = int(callback.data.split()[-1])
 
@@ -148,11 +146,14 @@ async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_but
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {start_}")
 
 
+@rate_limit(1)
 async def error_choise_type_name(message: Message):
     """Обработчик левых сообщений от новых пользователей при выборе профиля"""
     await message.answer(ANSWER_TEXT["error"]["choise_type_name"])
+    logger.info(f"{message.chat.id}")
 
 
 async def choise_group_(callback: CallbackQuery, state: FSMContext):
@@ -165,10 +166,16 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
     Update.user_settings_array(user_id, name_='group_', value=group__id)
     Update.user_settings_array(user_id, name_='spam_group_', value=group__id)
 
-    date_ = get_day_text(days=1)
+    fresh_month = Select.months_ready_timetable()[-1]
+    fresh_date_ = Select.dates_ready_timetable(month=fresh_month,
+                                               type_name="group_",
+                                               name_id=group__id)[0]
+    date_ = fresh_date_.strftime('%d.%m.%Y')
     data_ready_timetable = Select.ready_timetable("group_", date_, group__name)
 
-    text = get_message_timetable(group__name, date_, data_ready_timetable)
+    text = MessageTimetable(group__name,
+                            date_,
+                            data_ready_timetable).get()
 
     keyboard = Reply.default()
 
@@ -178,12 +185,14 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.delete()
     await callback.message.answer(text, reply_markup=keyboard)
+    user_state_data = await state.get_data()
+    await state.finish()
 
-    if 'send_help_message' in await state.get_data():
+    if 'send_help_message' in user_state_data:
         await asyncio.sleep(2)
         await help_message(callback.message)
 
-    await state.finish()
+    logger.info(f"{user_id} | {group__name} | {group__id}")
 
 
 async def choise_teacher(callback: CallbackQuery, state: FSMContext):
@@ -196,10 +205,16 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
     Update.user_settings_array(user_id, name_='teacher', value=teacher_id)
     Update.user_settings_array(user_id, name_='spam_teacher', value=teacher_id)
 
-    date_ = get_day_text(days=1)
+    fresh_month = Select.months_ready_timetable()[-1]
+    fresh_date_ = Select.dates_ready_timetable(month=fresh_month,
+                                               type_name="teacher",
+                                               name_id=teacher_id)[0]
+    date_ = fresh_date_.strftime('%d.%m.%Y')
     data_ready_timetable = Select.ready_timetable("teacher", date_, teacher_name)
 
-    text = get_message_timetable(teacher_name, date_, data_ready_timetable)
+    text = MessageTimetable(teacher_name,
+                            date_,
+                            data_ready_timetable).get()
     keyboard = Reply.default()
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
@@ -209,17 +224,32 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.delete()
     await callback.message.answer(text, reply_markup=keyboard)
+    user_state_data = await state.get_data()
 
-    if 'send_help_message' in await state.get_data():
+    if 'send_help_message' in user_state_data:
+        await state.finish()
         await asyncio.sleep(2)
         await help_message(callback.message)
 
-    await state.finish()
+    logger.info(f"{user_id} | {teacher_name} | {teacher_id}")
 
 
+@rate_limit(1)
 async def error_choise_name(message: Message):
     """Обработчик левых сообщений от новых пользователей при выборе группы/преподавателя"""
     await message.answer(ANSWER_TEXT["error"]["choise_name"])
+    logger.info(f"{message.chat.id}")
+
+
+async def choise_type_name(message: Message, text=None):
+    """Выбор типа профиля"""
+    if text is None:
+        text = ANSWER_TEXT["new_user"]["choise_type_name"]
+    keyboard = Inline.type_names()
+
+    await message.answer(text, reply_markup=keyboard)
+    await UserStates.choise_type_name.set()
+    logger.info(f"{message.chat.id}")
 
 
 @rate_limit(1)
@@ -227,7 +257,7 @@ async def timetable(message: Message):
     """Обработчик запроса на получение Расписания"""
     user_id = message.chat.id
 
-    user_info = Select.user_info_by_colomn_names(user_id)
+    user_info = Select.user_info_by_column_names(user_id)
 
     type_name = user_info[0]
     name_id = user_info[1]
@@ -235,30 +265,40 @@ async def timetable(message: Message):
     view_add = user_info[3]
     view_time = user_info[4]
 
-    if type_name is None:
+    if type_name is None or name_id is None:
         """У пользователя нет основной подписки"""
         return await message.answer(ANSWER_TEXT['no_main_subscription'])
 
     name_ = Select.name_by_id(type_name, name_id)
 
+    '''
     date_ = get_day_text()
     if Select.check_filling_table("replacement"):
         """Если в таблице есть замены"""
         date_ = get_day_text(days=1)
+    '''
+
+    fresh_month = Select.months_ready_timetable()[-1]
+    date_ = Select.dates_ready_timetable(month=fresh_month,
+                                         type_name=type_name,
+                                         name_id=name_id)[0]
+    date_str = date_.strftime("%d.%m.%Y")
 
     data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
 
-    text = get_message_timetable(name_,
-                                 date_,
-                                 data_ready_timetable,
-                                 view_name=view_name,
-                                 view_add=view_add,
-                                 view_time=view_time)
+    text = MessageTimetable(name_,
+                            date_str,
+                            data_ready_timetable,
+                            view_name=view_name,
+                            view_add=view_add,
+                            view_time=view_time).get()
     keyboard = Reply.default()
 
     await message.answer(text, reply_markup=keyboard)
+    logger.info(f"{user_id} | {name_} | {name_id}")
 
 
+@rate_limit(1)
 async def command_timetable(message: Message):
     """Обработчик команды /timatable"""
     await timetable(message)
@@ -286,7 +326,10 @@ async def settings(message: Message, callback=None, edit_text=False):
     else:
         await message.answer(text, reply_markup=keyboard)
 
+    logger.info(f"{user_id}")
 
+
+@rate_limit(1)
 async def command_settings(message: Message):
     """Обработчик команды /settings"""
     await settings(message)
@@ -307,14 +350,17 @@ async def main_settings(callback: CallbackQuery):
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id}")
 
 
 async def settings_info(callback: CallbackQuery):
     """Обработчик CallbackQuery для получения информации при нажатии кнопки"""
+    user_id = callback.message.chat.id
     settings_name = callback.data.split()[-1]
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
                                              text=ANSWER_CALLBACK['settings_info'][settings_name],
                                              show_alert=True)
+    logger.info(f"{user_id} | {settings_name}")
 
 
 async def update_main_settings_bool(callback: CallbackQuery):
@@ -325,10 +371,12 @@ async def update_main_settings_bool(callback: CallbackQuery):
     Update.user_settings_bool(user_id, name_=settings_name)
 
     await main_settings(callback)
+    logger.info(f"{user_id} | {settings_name}")
 
 
 async def support(callback: CallbackQuery, last_ind=-1):
-    """Обработка нажатия кнопки support """
+    """Обработка нажатия кнопки support"""
+    user_id = callback.message.chat.id
     last_callback_data = get_callback_values(callback, last_ind)[-1]
 
     rub_balance_value = Select.config('rub_balance')
@@ -340,43 +388,56 @@ async def support(callback: CallbackQuery, last_ind=-1):
                                      reply_markup=keyboard,
                                      disable_web_page_preview=True)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id}")
+
+
+async def future_updates(callback: CallbackQuery, last_ind=-1):
+    last_callback_data = get_callback_values(callback, last_ind)[-1]
+
+    text = Select.config("future_updates")
+    keyboard = Inline.get_back_button(last_callback_data, return_keyboard=True)
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.bot.answer_callback_query(callback.id)
 
 
 async def spam_or_subscribe_name_id(callback: CallbackQuery, last_ind=-1):
     """Обновление настроек spamming и subscribe для карточек группы/преподавателя"""
     user_id = callback.message.chat.id
     [callback_data_split, callback.data] = get_callback_values(callback, last_ind)
-    type_colomn_name = callback_data_split[-1]
-    action_type = type_colomn_name.split('_')[0]
-    short_type_name = type_colomn_name.split('_')[-1]
+    type_column_name = callback_data_split[-1]
+    action_type = type_column_name.split('_')[0]
+    short_type_name = type_column_name.split('_')[-1]
     name_id = callback_data_split[-2]
 
     result = Update.user_settings_array(user_id,
-                                        name_=colomn_name_by_callback.get(type_colomn_name),
+                                        name_=column_name_by_callback.get(type_column_name),
                                         value=name_id)
 
     # удалили подписку
-    if type_colomn_name in ('sub_gr', 'sub_tch') and not result:
+    if type_column_name in ('sub_gr', 'sub_tch') and not result:
 
         # если это карточка с активной основной подпиской, то удаляем её
         if Update.user_settings_value(user_id, 'name_id', name_id, remove_=True):
             Update.user_settings(user_id, 'type_name', 'NULL', convert_val_text=False)
 
         Update.user_settings_array(user_id,
-                                   name_=colomn_name_by_callback.get(f"sp_{short_type_name}"),
+                                   name_=column_name_by_callback.get(f"sp_{short_type_name}"),
                                    value=name_id,
                                    remove_=True)
 
-    elif type_colomn_name in ('sp_gr', 'sp_tch') and result:
+    elif type_column_name in ('sp_gr', 'sp_tch') and result:
 
         Update.user_settings_array(user_id,
-                                   name_=colomn_name_by_callback.get(f"sub_{short_type_name}"),
+                                   name_=column_name_by_callback.get(f"sub_{short_type_name}"),
                                    value=name_id,
                                    remove_=None)
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
                                              text=ANSWER_CALLBACK['spam_or_subscribe_name_id'](action_type, result),
                                              show_alert=False)
+
+    logger.info(f"{user_id} | {short_type_name} | {action_type} | {name_id}")
 
     if short_type_name == 'gr':
         await group__card(callback)
@@ -389,16 +450,16 @@ async def main_subscribe_name_id(callback: CallbackQuery, last_ind=-1):
     """Обновление настроек main_subscribe для карточек группы/преподавателя"""
     user_id = callback.message.chat.id
     [callback_data_split, callback.data] = get_callback_values(callback, last_ind)
-    type_colomn_name = callback_data_split[-1]
+    type_column_name = callback_data_split[-1]
     name_id = callback_data_split[-2]
 
     result = Update.user_settings_value(user_id, 'name_id', name_id)
 
     # если основная подписка добавлена
     if result:
-        Update.user_settings(user_id, 'type_name', type_colomn_name == 'm_sub_gr', convert_val_text=True)
+        Update.user_settings(user_id, 'type_name', type_column_name == 'm_sub_gr', convert_val_text=True)
         Update.user_settings_array(user_id,
-                                   name_=colomn_name_by_callback.get(type_colomn_name),
+                                   name_=column_name_by_callback.get(type_column_name),
                                    value=name_id,
                                    remove_=None)
     else:
@@ -409,10 +470,12 @@ async def main_subscribe_name_id(callback: CallbackQuery, last_ind=-1):
                                              text=ANSWER_CALLBACK['main_subscribe_name_id'](result),
                                              show_alert=False)
 
-    if type_colomn_name == 'm_sub_gr':
+    logger.info(f"{user_id} | {type_column_name} | {name_id}")
+
+    if type_column_name == 'm_sub_gr':
         await group__card(callback)
 
-    elif type_colomn_name == 'm_sub_tch':
+    elif type_column_name == 'm_sub_tch':
         await teacher_card(callback)
 
 
@@ -432,6 +495,8 @@ async def group__card(callback: CallbackQuery, last_ind=-2):
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
 
+    logger.info(f"{user_id} | {group__user_info[0]} | {group__id}")
+
 
 async def teacher_card(callback: CallbackQuery, last_ind=-2):
     """Показать карточку преподавателя"""
@@ -448,90 +513,97 @@ async def teacher_card(callback: CallbackQuery, last_ind=-2):
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {teacher_user_info[0]} | {teacher_id}")
 
 
 async def week_days_main_timetable(callback: CallbackQuery, last_ind=-1):
     """Показать список дней недели дня получения основного расписания"""
+    user_id = callback.message.chat.id
     last_callback_data = get_callback_values(callback, last_ind)[-1]
 
     text = ANSWER_TEXT['week_days_main_timetable']
-    keyboard = Inline.week_days_main_timetable(callback_data=callback.data,
+    keyboard = Inline.week_days_main_timetable(current_week_day_id=datetime.now().weekday(),
+                                               callback_data=callback.data,
                                                last_callback_data=last_callback_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id}")
 
 
 async def download_main_timetable(callback: CallbackQuery):
-    """Скачать Основное расписание на неделю
-
-    Необходимо как-то помечать числитель и знаменатель
-
-    """
+    """Скачать Основное расписание на неделю"""
     user_id = callback.message.chat.id
     callback_data_split = callback.data.split()
 
-    type_name = colomn_name_by_callback.get(callback_data_split[-4])
+    type_name = column_name_by_callback.get(callback_data_split[-4])
     name_id = callback_data_split[-3]
-
     name_ = Select.name_by_id(type_name, name_id)
 
     text = f"{name_}\n\n"
 
     for week_day_id in range(6):
+        week_day_name = get_week_day_name_by_id(week_day_id, bold=False)
         data_main_timetable = Select.view_main_timetable(type_name,
                                                          name_,
                                                          week_day_id=week_day_id,
                                                          lesson_type=None)
-        main_timetable_message = get_message_timetable(name_,
-                                                       get_week_day_name_by_id(week_day_id, bold=False),
-                                                       data_main_timetable,
-                                                       start_text="",
-                                                       view_name=False,
-                                                       formated=False)
+        main_timetable_message = MessageTimetable(name_,
+                                                  week_day_name,
+                                                  data_main_timetable,
+                                                  start_text="",
+                                                  view_name=False,
+                                                  type_format="txt",
+                                                  format_not_timetable="only_date").get()
         text += f"{main_timetable_message}\n\n"
 
     file = StringIO(text)
-    file.name = f"{name_} Расписание на неделю.txt"
+    file.name = f"{name_} На неделю {callback.id[-4:]}.txt"
 
     await callback.bot.send_chat_action(user_id, 'upload_document')
     await asyncio.sleep(2)
     await callback.bot.send_document(user_id, file)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {type_name} | {name_}")
 
 
 async def get_main_timetable_by_week_day_id(callback: CallbackQuery, last_ind=-1):
     """Получить основное расписание для дня недели"""
+    user_id = callback.message.chat.id
     [callback_data_split, last_callback_data] = get_callback_values(callback, last_ind)
 
     week_day_id = callback_data_split[-1]
 
-    type_name = colomn_name_by_callback.get(callback_data_split[-4])
+    type_name = column_name_by_callback.get(callback_data_split[-4])
     name_id = callback_data_split[-3]
     name_ = Select.name_by_id(type_name, name_id)
 
     data_main_timetable = Select.view_main_timetable(type_name, name_, week_day_id=week_day_id, lesson_type=None)
 
     if not data_main_timetable:
-        week_day = get_week_day_name_by_id(week_day_id, type_case="genitive", bold=False)
+        week_day = get_week_day_name_by_id(week_day_id, type_case="prepositional", bold=False)
         text = ANSWER_CALLBACK['not_timetable_by_week_day'](week_day)
         await callback.bot.answer_callback_query(callback_query_id=callback.id,
                                                  text=text)
 
     else:
-        text = get_message_timetable(name_,
-                                     get_week_day_name_by_id(week_day_id, type_case='prepositional'),
-                                     data_main_timetable,
-                                     start_text="Основное расписание на ",
-                                     formated=True)
+        date_week_day = get_week_day_name_by_id(week_day_id, type_case='prepositional')
+        text = MessageTimetable(name_,
+                                date_week_day,
+                                data_main_timetable,
+                                start_text="Основное расписание на ",
+                                format_=True).get()
         keyboard = Inline.get_back_button(last_callback_data, return_keyboard=True)
 
         await callback.message.edit_text(text, reply_markup=keyboard)
         await callback.bot.answer_callback_query(callback.id)
 
+    logger.info(f"{user_id} | {type_name} | {name_} | {week_day_id} | {bool(data_main_timetable)}")
+
 
 async def months_history_ready_timetable(callback: CallbackQuery, last_ind=-1):
-    """Вывести список месяуев"""
+    """Вывести список с месяцами"""
+    user_id = callback.message.chat.id
     last_callback_data = get_callback_values(callback, last_ind)[-1]
 
     months_array = Select.months_ready_timetable()
@@ -541,72 +613,88 @@ async def months_history_ready_timetable(callback: CallbackQuery, last_ind=-1):
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id}")
 
 
 async def dates_ready_timetable(callback: CallbackQuery, last_ind=-1):
     """Вывести список дат"""
+    user_id = callback.message.chat.id
     [callback_data_split, last_callback_data] = get_callback_values(callback, last_ind)
-    type_name = colomn_name_by_callback.get(callback_data_split[-4])
+    type_name = column_name_by_callback.get(callback_data_split[-4])
     name_id = callback_data_split[-3]
     month = callback_data_split[-1]
 
     name_ = Select.name_by_id(type_name, name_id)
 
-    dates_array = Select.dates_ready_timetable(month)
+    dates_array = Select.dates_ready_timetable(month=month,
+                                               type_name=type_name,
+                                               name_id=name_id)
+    if not dates_array:
+        """Если нет расписания ни на одну дату"""
+        return await callback.bot.answer_callback_query(callback_query_id=callback.id,
+                                                        text=ANSWER_CALLBACK['not_ready_timetable_by_month'](
+                                                            month_translate(month)),
+                                                        show_alert=False)
 
     text = ANSWER_TEXT['dates_ready_timetable'](name_, month_translate(month))
     keyboard = Inline.dates_ready_timetable(dates_array, callback.data, last_callback_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {type_name} | {name_}")
 
 
-# @rate_limit(1)
 async def download_ready_timetable_by_month(callback: CallbackQuery):
     """Скачать всё расписание на определённый месяц"""
     user_id = callback.message.chat.id
     callback_data_split = callback.data.split()
 
-    type_name = colomn_name_by_callback.get(callback_data_split[-5])
+    type_name = column_name_by_callback.get(callback_data_split[-5])
     name_id = callback_data_split[-4]
     month = callback_data_split[-2]
+    month_translate_text = month_translate(month)
 
     name_ = Select.name_by_id(type_name, name_id)
 
-    text = f"{name_} {month_translate(month)}\n\n"
+    text = f"{name_} {month_translate_text}\n\n"
 
-    user_info = Select.user_info_by_colomn_names(user_id, colomn_names=['view_add', 'view_time'])
+    user_info = Select.user_info_by_column_names(user_id, column_names=['view_add', 'view_time'])
     view_add = user_info[0]
     view_time = user_info[1]
 
-    dates_array = Select.dates_ready_timetable(month, type_sort='')
+    dates_array = Select.dates_ready_timetable(month=month,
+                                               type_name=type_name,
+                                               name_id=name_id,
+                                               type_sort='ASC')
 
     for date_ in dates_array:
         data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
         date_text = date_.strftime('%d.%m.%Y')
 
         if data_ready_timetable:
-            ready_timetable_message = get_message_timetable(name_,
-                                                            date_text,
-                                                            data_ready_timetable,
-                                                            view_name=False,
-                                                            view_add=view_add,
-                                                            view_time=view_time)
+            ready_timetable_message = MessageTimetable(name_,
+                                                       date_text,
+                                                       data_ready_timetable,
+                                                       view_name=False,
+                                                       view_add=view_add,
+                                                       view_time=view_time).get()
             text += f"{ready_timetable_message}\n\n"
 
     file = StringIO(text)
-    file.name = f"{name_} {month_translate(month)}.txt"
+    file.name = f"{name_} {month_translate(month)} {callback.id[-4:]}.txt"
 
     await callback.bot.send_chat_action(user_id, 'upload_document')
     await asyncio.sleep(2)
     await callback.bot.send_document(user_id, file)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {type_name} | {name_} | {month}")
 
 
 async def ready_timetable_by_date(callback: CallbackQuery):
     """Вывести расписание для определённой даты"""
+    user_id = callback.message.chat.id
     callback_data_split = callback.data.split()
-    type_name = colomn_name_by_callback.get(callback_data_split[-5])
+    type_name = column_name_by_callback.get(callback_data_split[-5])
     name_id = callback_data_split[-4]
     date_ = callback_data_split[-1]
 
@@ -615,6 +703,7 @@ async def ready_timetable_by_date(callback: CallbackQuery):
                                type_name=type_name,
                                name_id=name_id,
                                date_=date_)
+    logger.info(f"{user_id} | {type_name} | {name_id} | {date_}")
 
 
 async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=None, name_id=None, date_=None):
@@ -622,19 +711,34 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
     user_id = callback.message.chat.id
     [callback_data_split, last_callback_data] = get_callback_values(callback, last_ind)
 
-    if date_ is None:
-        date_ = get_day_text()
-        if Select.check_filling_table("replacement"):
-            """Если таблица с заменами заполнена"""
-            date_ = get_day_text(days=1)
-
     if type_name is None:
-        type_name = colomn_name_by_callback.get(callback_data_split[-1])
+        type_name = column_name_by_callback.get(callback_data_split[-1])
 
     if name_id is None:
         name_id = callback_data_split[-2]
 
-    user_info = Select.user_info_by_colomn_names(user_id, colomn_names=['view_add', 'view_time'])
+    if date_ is None:
+
+        '''
+        date_ = get_day_text()
+        if Select.check_filling_table("replacement"):
+            """Если таблица с заменами заполнена"""
+            date_ = get_day_text(days=1)
+        '''
+
+        fresh_month = Select.months_ready_timetable()[-1]
+        dates_array = Select.dates_ready_timetable(month=fresh_month,
+                                                   type_name=type_name,
+                                                   name_id=name_id)
+        if not dates_array:
+            """Расписание на выбранную дату отсутствует"""
+            return await callback.bot.answer_callback_query(callback_query_id=callback.id,
+                                                            text=ANSWER_CALLBACK['not_ready_timetable'],
+                                                            show_alert=False)
+
+        date_ = dates_array[0].strftime("%d.%m.%Y")
+
+    user_info = Select.user_info_by_column_names(user_id, column_names=['view_add', 'view_time'])
     view_add = user_info[0]
     view_time = user_info[1]
 
@@ -642,43 +746,69 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
 
     data_ready_timetable = Select.ready_timetable(type_name, date_, name_)
 
-    if not data_ready_timetable:
-        """Расписание на выбранную дату отсутствует"""
-        return await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                                        text=ANSWER_CALLBACK['not_ready_timetable'],
-                                                        show_alert=False)
-
-    text = get_message_timetable(name_,
-                                 date_,
-                                 data_ready_timetable,
-                                 view_add=view_add,
-                                 view_time=view_time,
-                                 formated=False)
+    text = MessageTimetable(name_,
+                            date_,
+                            data_ready_timetable,
+                            view_add=view_add,
+                            view_time=view_time,
+                            format_=False).get()
     keyboard = Inline.get_back_button(last_callback_data, return_keyboard=True)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id} | {type_name} | {name_}")
 
 
 async def view_callback(callback: CallbackQuery):
     """Обработчик нажатий на пустые кнопки"""
+    user_id = callback.message.chat.id
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
                                              text=' '.join(callback.data.split()[1:]),
                                              show_alert=True)
+    logger.info(f"{user_id}")
 
 
 async def close(callback: CallbackQuery):
     """Обработать запрос на удаление (закрытие) окна сообщения"""
     await callback.message.delete()
+    user_id = callback.message.chat.id
+    logger.info(f"{user_id}")
 
 
+@rate_limit(1)
+async def call_schedule(message: Message):
+    """Расписание звонков"""
+    await message.answer(ANSWER_TEXT['call_schedule'])
+
+
+@rate_limit(1)
 async def help_message(message: Message):
     """Вывести help-сообщение"""
+    user_id = message.chat.id
     await message.answer(ANSWER_TEXT['help'])
+    logger.info(f"{user_id}")
 
 
+@rate_limit(1)
 async def show_keyboard(message: Message):
-    await message.answer(text=ANSWER_TEXT['show_keyboard'], reply_markup=Reply.default())
+    """Показать клавиатуру"""
+    user_id = message.chat.id
+    text = ANSWER_TEXT['show_keyboard']
+    keyboard = Reply.default()
+    if user_id in ADMINS:
+        keyboard = Reply.default_admin()
+
+    await message.answer(text=text, reply_markup=keyboard)
+    logger.info(f"{user_id}")
+
+
+@rate_limit(1)
+async def other_messages(message: Message):
+    """Обработчик сторонних сообщений"""
+    user_id = message.chat.id
+    text = random.choice(ANSWER_TEXT['other_messages'])
+    await message.answer(text=text)
+    logger.info(f"{user_id}")
 
 
 '''
@@ -691,7 +821,6 @@ async def terminated_by_other_get_updates(update: types.Update, exception: Termi
     await bot.send_message(chat_id=1020624735, text="Запущено 2 экземпляра бота")
 '''
 
-
 '''
 MessageTextIsEmpty
 '''
@@ -703,8 +832,6 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_message_handler(new_user,
                                 lambda msg: Select.user_info(user_id=msg.chat.id) is None,
                                 content_types=['text'])
-
-    dp.register_message_handler(choise_type_name, commands=['start'], state='*')
 
     dp.register_callback_query_handler(choise_group__name,
                                        lambda call: check_call(call, ['g_list']),
@@ -741,6 +868,10 @@ def register_user_handlers(dp: Dispatcher):
 
     dp.register_message_handler(error_choise_name, state=UserStates.choise_name)
 
+    dp.register_message_handler(choise_type_name,
+                                commands=['start'],
+                                state='*')
+
     dp.register_message_handler(timetable, Text(contains=['Расписание'], ignore_case=True))
 
     dp.register_message_handler(command_timetable, commands=['timetable'])
@@ -763,6 +894,9 @@ def register_user_handlers(dp: Dispatcher):
 
     dp.register_callback_query_handler(support,
                                        lambda call: check_call(call, ['support']))
+
+    dp.register_callback_query_handler(future_updates,
+                                       lambda call: check_call(call, ['future_updates']))
 
     dp.register_callback_query_handler(spam_or_subscribe_name_id,
                                        lambda call: check_call(call, ['sp_gr', 'sub_gr', 'sp_tch', 'sub_tch']))
@@ -806,12 +940,19 @@ def register_user_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(close,
                                        lambda call: call.data == 'close', state='*')
 
+    dp.register_message_handler(call_schedule,
+                                commands=['call_schedule'],
+                                state='*')
+
     dp.register_message_handler(help_message,
                                 commands=['help'],
                                 state='*')
 
     dp.register_message_handler(show_keyboard,
                                 commands=['show_keyboard'],
+                                state='*')
+
+    dp.register_message_handler(other_messages,
                                 state='*')
 
     # dp.register_errors_handler(terminated_by_other_get_updates, exception=TerminatedByOtherGetUpdates)

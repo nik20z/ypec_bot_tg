@@ -2,6 +2,7 @@ from bot.database.connect import cursor, connection
 
 from bot.database import Select
 
+
 def get_list_tuples(a):
     return [(x,) for x in a if x is not None]
 
@@ -59,7 +60,7 @@ def ready_timetable(data: list):
 
 
 def group_(group__names: list):
-    group_names_in_table = Select.all_info(table_name="group_", colomn_name="group__name")
+    group_names_in_table = Select.all_info(table_name="group_", column_name="group__name")
     names_array = list(set(group__names) - set(group_names_in_table))
 
     query = """INSERT INTO group_
@@ -71,7 +72,7 @@ def group_(group__names: list):
 
 
 def teacher(teacher_names: list):
-    teacher_names_in_table = Select.all_info(table_name="teacher", colomn_name="teacher_name")
+    teacher_names_in_table = Select.all_info(table_name="teacher", column_name="teacher_name")
     names_array = list(set(teacher_names) - set(teacher_names_in_table))
 
     query = """INSERT INTO teacher
@@ -83,7 +84,7 @@ def teacher(teacher_names: list):
 
 
 def lesson(lesson_names: list):
-    lesson_names_in_table = Select.all_info(table_name="lesson", colomn_name="lesson_name")
+    lesson_names_in_table = Select.all_info(table_name="lesson", column_name="lesson_name")
     names_array = list(set(lesson_names) - set(lesson_names_in_table))
 
     query = """INSERT INTO lesson
@@ -95,7 +96,7 @@ def lesson(lesson_names: list):
 
 
 def audience(audience_names: list):
-    audience_names_in_table = Select.all_info(table_name="audience", colomn_name="audience_name")
+    audience_names_in_table = Select.all_info(table_name="audience", column_name="audience_name")
     names_array = list(set(audience_names) - set(audience_names_in_table))
 
     query = """INSERT INTO audience
