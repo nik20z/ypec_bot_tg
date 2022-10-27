@@ -149,7 +149,7 @@ def query_info_by_name(table_name: str, info='id', default_method=False, value=N
     return f"({query})"
 
 
-def user_info(user_id: int):
+def user_info(user_id: int, table_name="telegram"):
     """Получить данные о пользователе"""
     query = """SELECT  CASE WHEN type_name THEN 'group_' ELSE 'teacher' END,
                         '',
@@ -165,14 +165,14 @@ def user_info(user_id: int):
                         view_name, 
                         view_add, 
                         view_time
-                FROM telegram
+                FROM {1}
                 WHERE user_id = {0}
-                """.format(user_id)
+                """.format(user_id, table_name)
     cursor.execute(query)
     return cursor.fetchone()
 
 
-def user_info_by_column_names(user_id: int, column_names=None):
+def user_info_by_column_names(user_id: int, column_names=None, table_name="telegram"):
     """Данные о пользователе по конкретным колонкам"""
     if column_names is None:
         column_names = ["CASE WHEN type_name THEN 'group_' WHEN not type_name THEN 'teacher' ELSE NULL END",
@@ -181,15 +181,16 @@ def user_info_by_column_names(user_id: int, column_names=None):
                         "view_add",
                         "view_time"]
     query = """SELECT {1}
-                FROM telegram
+                FROM {2}
                 WHERE user_id = {0}
                 """.format(user_id,
-                           ', '.join(column_names))
+                           ', '.join(column_names),
+                           table_name)
     cursor.execute(query)
     return cursor.fetchone()
 
 
-def user_info_name_card(type_name: str, user_id: int, name_id: int):
+def user_info_name_card(type_name: str, user_id: int, name_id: int, table_name="telegram"):
     """Информация о подписках пользователя"""
     query = """SELECT {0}_name,
                         case 
@@ -199,9 +200,9 @@ def user_info_name_card(type_name: str, user_id: int, name_id: int):
                         end,
                         {2} = ANY({0}_ids),
                         {2} = ANY(spam_{0}_ids)
-                FROM telegram
+                FROM {3}
                 LEFT JOIN {0} ON {2} = {0}.{0}_id
-                WHERE user_id = {1}""".format(type_name, user_id, name_id)
+                WHERE user_id = {1}""".format(type_name, user_id, name_id, table_name)
     cursor.execute(query)
     return cursor.fetchone()
 
@@ -313,7 +314,7 @@ def names_rep_different(type_name: str):
     return spam_ids
 
 
-def user_ids_telegram_by(type_name: str, name_id: int):
+def user_ids_telegram_by(type_name: str, name_id: int, table_name="telegram"):
     """Получить список пользователей, которые подписаны на рассылку"""
     query = """SELECT user_id, pin_msg, view_name, view_add, view_time 
                FROM telegram 
@@ -346,24 +347,24 @@ def months_ready_timetable():
     return concert_fetchall_to_list(cursor.fetchall())
 
 
-def user_ids():
+def user_ids(table_name="telegram"):
     """Массив id пользователей"""
-    query = "SELECT user_id FROM telegram"
+    query = "SELECT user_id FROM {0}".format(table_name)
     cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
 
 
-def count_subscribe_by_type_name(type_name: str):
+def count_subscribe_by_type_name(type_name: str, table_name="telegram"):
     """Получить информацию о количестве подписок по группам и преподам"""
     state_type_name = "NOT" if type_name == "teacher" else ""
     query = """SELECT array_agg(DISTINCT {1}.{1}_name), 
                       COUNT(name_id) AS count_user
-               FROM telegram
+               FROM {2}
                LEFT JOIN {1} ON name_id = {1}.{1}_id
                WHERE {0} type_name
                GROUP BY name_id
                ORDER BY count_user DESC
-               """.format(state_type_name, type_name)
+               """.format(state_type_name, type_name, table_name)
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -375,13 +376,13 @@ def count_row_by_table_name(table_name: str):
     return cursor.fetchone()[0]
 
 
-def count_all_users_by_dates():
+def count_all_users_by_dates(table_name="telegram"):
     """Количество новых пользователей по датам"""
     query = """SELECT array_agg(DISTINCT joined) AS date_, 
                       COUNT(user_id)
-               FROM telegram
+               FROM {0}
                GROUP BY joined
                ORDER BY date_
-               """
+               """.format(table_name)
     cursor.execute(query)
     return cursor.fetchall()

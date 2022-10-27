@@ -85,7 +85,10 @@ def teacher(teacher_names: list):
 
 def lesson(lesson_names: list):
     lesson_names_in_table = Select.all_info(table_name="lesson", column_name="lesson_name")
+    [print(f"lesson_names |{x}|") for x in lesson_names]
     names_array = list(set(lesson_names) - set(lesson_names_in_table))
+
+    [print(f"|{x}|") for x in names_array]
 
     query = """INSERT INTO lesson
                 (lesson_name)
