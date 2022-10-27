@@ -9,7 +9,7 @@ from aiogram.utils.exceptions import MessageTextIsEmpty
 
 # My modules
 from bot.config import GOD_ID, ADMINS
-from bot.config import ANSWER_TEXT
+from bot.config import AnswerText
 from bot.database import Insert
 from bot.database import Update
 from bot.database import Select
