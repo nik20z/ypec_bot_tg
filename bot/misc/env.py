@@ -23,6 +23,10 @@ class Donate:
     TINKOFF: Final = environ.get('TINKOFF', "https://www.tinkoff.ru/cf/123456789")
     QIWI: Final = environ.get('QIWI', "https://qiwi.com/p/123456789")
     SBERBANK: Final = environ.get('SBERBANK', "https://www.sberbank.ru/ru/person/dl/jc?linkname=123456789")
+    YOOMONEY: Final = environ.get('YOOMONEY', "https://sobe.ru/na/123456789")
+    BITCOIN: Final = environ.get('BTC', "123456789")
+    ETHERIUM: Final = environ.get('ETH', "123456789")
+    USDT_TRON: Final = environ.get('USDT_TRON', "123456789")
 
 
 class Communicate:
