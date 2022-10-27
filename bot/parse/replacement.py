@@ -6,6 +6,7 @@ from bot.database import Select
 from bot.parse.functions import get_full_link_by_part
 from bot.parse.functions import get_correct_audience
 from bot.parse.functions import convert_lesson_name
+from bot.parse.functions import replace_english_letters
 
 from bot.parse.config import main_link_ypec
 from bot.parse.config import headers_ypec
@@ -16,6 +17,18 @@ def get_part_link_by_day(day):
     return {'today': 'rasp-zmnow', 'tomorrow': 'rasp-zmnext'}.get(day)
 
 
+def get_correct_group__name(maybe_group__name):
+    """Получить корректное название группы"""
+    maybe_group__name = maybe_group__name.replace(' ', '').title()
+    return replace_english_letters(maybe_group__name)
+
+
+def get_correct_teacher_name(maybe_teacher_name):
+    """Получить корректное ФИО преподавателя"""
+    maybe_teacher_name = maybe_teacher_name.title()
+    return replace_english_letters(maybe_teacher_name)
+
+
 def get_teacher_names_array(one_lesson):
     """Создать массив с ФИО преподавателей"""
     return one_lesson[-1].replace('. ', '.,').split(',')
@@ -24,8 +37,19 @@ def get_teacher_names_array(one_lesson):
 def get_audience_array(one_lesson):
     """Создать массив аудиторий"""
     audience = one_lesson[-2]
-    if ',' in audience:
-        return audience.split(',')
+    '''
+    Заменить английские буквы, похожие на русские
+    
+    '''
+    d_letters = {'A': 'А',
+                 'B': 'В'}
+
+    for en_letter, rus_letter in d_letters.items():
+        audience = audience.replace(en_letter, rus_letter)
+
+    for i in (',', ';'):
+        if i in audience:
+            return audience.split(i)
     return audience.split()
 
 
@@ -59,8 +83,6 @@ class Replacements:
     """
 
     def __init__(self):
-        self.get_correct_group__name = lambda s: s.strip().replace(' ', '')
-
         self.data = []
         self.date = None
         self.week_lesson_type = None
@@ -108,7 +130,7 @@ class Replacements:
                 continue
 
             if not one_td_array[0].get("rowspan") is None:
-                maybe_group__name = self.get_correct_group__name(one_td_array[0].text)
+                maybe_group__name = get_correct_group__name(one_td_array[0].text)
                 group__name = Select.query_info_by_name('group_',
                                                         info='name',
                                                         value=maybe_group__name)
@@ -120,10 +142,10 @@ class Replacements:
 
             try:
                 num_lesson = one_lesson[0]
-                lesson_by_main_timetable = one_lesson[1]
+                lesson_by_main_timetable = replace_english_letters(one_lesson[1])
                 rep_lesson = one_lesson[-3]
 
-                replace_for_lesson = rep_lesson.strip()
+                replace_for_lesson = rep_lesson
                 # Если нет номера пары (практика), то оставляем строку с парой как есть
                 if num_lesson != '':
                     replace_for_lesson = convert_lesson_name(rep_lesson)
@@ -137,7 +159,7 @@ class Replacements:
 
                     for teacher_name in teacher_names_array:
                         ind = teacher_names_array.index(teacher_name)
-                        teacher_name_corrected = teacher_name.strip().title()
+                        teacher_name_corrected = get_correct_teacher_name(teacher_name)
 
                         maybe_teacher_name = Select.query_info_by_name('teacher',
                                                                        info='name',

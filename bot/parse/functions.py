@@ -1,3 +1,22 @@
+from transliterate import translit
+from transliterate.base import TranslitLanguagePack, registry
+
+
+class ExampleLanguagePack(TranslitLanguagePack):
+    language_code = "example"
+    language_name = "Example"
+    mapping = (
+        u"ABCEHKMOPTXacekpox",
+        u"АВСЕНКМОРТХасекрох",
+    )
+
+
+registry.register(ExampleLanguagePack)
+
+
+def replace_english_letters(text):
+    """Заменяем схожие по написанию буквы английского алфавита"""
+    return translit(text, 'example')
 
 
 def get_full_link_by_part(main_link: str, part_link: str):
@@ -67,7 +86,9 @@ def convert_lesson_name(lesson_name):
     if '1/2' in lesson_name and ' гр' not in lesson_name:
         lesson_name = lesson_name.replace('1/2', '1/2 гр')
 
-    return lesson_name.strip()
+    replace_lesson_name = replace_english_letters(lesson_name)
+
+    return " ".join(replace_lesson_name.split())
 
 
 def get_correct_audience(audience: str):
@@ -83,4 +104,4 @@ def get_correct_audience(audience: str):
         elif 10 <= int(audience) <= 50:
             return f"Б-{audience}"
 
-    return audience.title()
+    return replace_english_letters(audience).title()

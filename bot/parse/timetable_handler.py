@@ -4,6 +4,7 @@ from bot.database import Select
 
 from bot.functions import get_day_text
 from bot.functions import get_week_day_id_by_date_
+
 from bot.parse.functions import convert_timetable_to_dict
 from bot.parse.functions import convert_lesson_name
 
@@ -133,7 +134,6 @@ class TimetableHandler:
                                          week_day_id=week_day_id,
                                          lesson_type=lesson_type)
 
-        Insert.lesson(list(self.lesson_names))
         Insert.ready_timetable(self.ready_timetable_data)
 
     def get_names_array_by_type_name(self, type_name):
