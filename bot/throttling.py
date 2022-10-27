@@ -9,7 +9,7 @@ from aiogram.types import Message
 
 from aiogram.utils.exceptions import Throttled
 
-from bot.config import ANSWER_TEXT
+from bot.config import AnswerText
 
 
 def rate_limit(limit: int, key=None):
@@ -68,7 +68,7 @@ class ThrottlingMiddleware(BaseMiddleware):
 
         # Prevent flooding
         if throttled.exceeded_count <= 2:
-            await message.reply(ANSWER_TEXT['message_throttled'])
+            await message.reply(AnswerText.message_throttled)
 
         # Sleep.
         await asyncio.sleep(delta)

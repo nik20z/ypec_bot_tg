@@ -1,13 +1,14 @@
 from datetime import datetime, timedelta
 import time
-from loguru import logger
+# from loguru import logger
 
 from aiogram import Dispatcher
-from aiogram.utils.exceptions import BadRequest, BotBlocked, ChatNotFound
+from aiogram.utils.exceptions import BadRequest, BotBlocked
+# ChatNotFound
 
 # My Modules
 from bot.config import GOD_ID
-from bot.config import ANSWER_TEXT
+from bot.config import AnswerText
 
 from bot.database import Table
 from bot.database import Insert
@@ -89,7 +90,6 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
     names_array = []
 
     for table_name in ("group_", "teacher"):
-        logger.info(table_name)
 
         if get_all_ids:
             spam_ids = Select.all_info(table_name=table_name, column_name=f"{table_name}_id")
@@ -97,22 +97,24 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
             spam_ids = Select.names_rep_different(table_name)
 
         for name_id in spam_ids:
+            
+            if name_id is None:
+                continue
 
             name_ = Select.value_by_id(table_name_=table_name,
                                        column_names=[f"{table_name}_name"],
                                        id_=name_id,
                                        check_id_name_column=f"{table_name}_id")
             names_array.append(name_)
-            logger.info(name_, name_id)
 
             data_ready_timetable = Select.ready_timetable(table_name, date_, name_)
 
             spam_user_data = Select.user_ids_telegram_by(table_name, name_id)
 
             for user_data in spam_user_data:
+                """Перебираем массивы с данными пользователей"""
 
                 [user_id, pin_msg, view_name, view_add, view_time] = user_data
-                logger.info(user_id)
 
                 text = MessageTimetable(name_,
                                         date_,
@@ -127,6 +129,7 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
                     count_send_msg += 1
 
                     if pin_msg:
+                        """Если пользователь просит закрепить сообщение"""
                         try:
                             t_pin_msg = time.time()
                             await dp.bot.pin_chat_message(user_id, message.message_id)
@@ -135,15 +138,12 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
 
                         except BadRequest:
                             if user_id < 0:
-                                await dp.bot.send_message(user_id, text=ANSWER_TEXT["error"]["not_msg_pin"])
+                                await dp.bot.send_message(user_id, text=AnswerText.error["not_msg_pin"])
                                 Update.user_settings(user_id, 'pin_msg', 'False', convert_val_text=False)
 
-                except Exception as e:
-                    if e == 'bot blocked':
-                        Update.user_settings(user_id, 'spamming', 'False', convert_val_text=False)
-                        # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
-                    else:
-                        await dp.bot.send_message(GOD_ID, text=f"{e}")
+                except BotBlocked:
+                    Update.user_settings(user_id, 'spamming', 'False', convert_val_text=False)
+                    # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
 
     avg_time_send_msg = round(sum(time_send_msg_array) / len(time_send_msg_array), 2)
     avg_time_pin_msg = round(sum(time_pin_msg_array) / len(time_pin_msg_array), 2)
