@@ -8,6 +8,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 # from aiogram.utils.exceptions import TerminatedByOtherGetUpdates, BotBlocked
+# from aiogram.utils.exceptions import MessageTextIsEmpty
 
 import aiogram.utils.markdown as fmt
 
@@ -20,8 +21,8 @@ from bot.database import Select
 from bot.database import Insert
 from bot.database import Update
 
-from bot.config import ANSWER_TEXT
-from bot.config import ANSWER_CALLBACK
+from bot.config import AnswerText
+from bot.config import AnswerCallback
 from bot.config import ADMINS
 
 from bot.keyboards import Inline
@@ -29,13 +30,11 @@ from bot.keyboards import Reply
 
 from bot.message_timetable import MessageTimetable
 
-from bot.functions import get_week_day_name_by_id
-from bot.functions import month_translate
-
 from bot.handlers.functions import check_call
 from bot.handlers.functions import get_callback_values
 from bot.handlers.functions import column_name_by_callback
-
+from bot.functions import get_week_day_name_by_id
+from bot.functions import month_translate
 
 from bot.throttling import rate_limit
 
@@ -54,11 +53,11 @@ async def new_user(message: Message, state: FSMContext):
     if user_id > 0:
         user_name = message.chat.first_name
         user_name_quote = fmt.quote_html(user_name)
-        text = ANSWER_TEXT["new_user"]["welcome_message_private"](user_name_quote)
+        text = AnswerText.new_user["welcome_message_private"](user_name_quote)
     else:
         user_name = message.chat.title
         user_name_quote = fmt.quote_html(user_name)
-        text = ANSWER_TEXT["new_user"]["welcome_message_group"](user_name_quote)
+        text = AnswerText.new_user["welcome_message_group"](user_name_quote)
 
     new_user_data = (user_id, user_name, joined)
     Insert.new_user(new_user_data)
@@ -76,7 +75,7 @@ async def choise_group__name(callback: CallbackQuery, course=1):
     Update.user_settings(user_id, 'type_name', 'True')
     group__name_array = Select.group_()
 
-    text = ANSWER_TEXT["new_user"]["choise_name"]('group_')
+    text = AnswerText.new_user["choise_name"]('group_')
     keyboard = Inline.groups__list(group__name_array, course=course)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -98,7 +97,7 @@ async def paging_group__list(callback: CallbackQuery, last_ind=-2, add_back_butt
 
     group__name_array = Select.group_()
 
-    text = ANSWER_TEXT["new_user"]["choise_name"]('group_')
+    text = AnswerText.new_user["choise_name"]('group_')
     keyboard = Inline.groups__list(group__name_array,
                                    course=course,
                                    add_back_button=add_back_button,
@@ -116,7 +115,7 @@ async def choise_teacher_name(callback: CallbackQuery):
     Update.user_settings(user_id, 'type_name', 'False')
     teacher_name_array = Select.teacher()
 
-    text = ANSWER_TEXT["new_user"]["choise_name"]('teacher')
+    text = AnswerText.new_user["choise_name"]('teacher')
     keyboard = Inline.teachers_list(teacher_name_array)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -138,7 +137,7 @@ async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_but
 
     teacher_name_array = Select.teacher()
 
-    text = ANSWER_TEXT["new_user"]["choise_name"]('teacher')
+    text = AnswerText.new_user["choise_name"]('teacher')
     keyboard = Inline.teachers_list(teacher_name_array,
                                     start_=start_,
                                     add_back_button=add_back_button,
@@ -152,7 +151,7 @@ async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_but
 @rate_limit(1)
 async def error_choise_type_name(message: Message):
     """Обработчик левых сообщений от новых пользователей при выборе профиля"""
-    await message.answer(ANSWER_TEXT["error"]["choise_type_name"])
+    await message.answer(AnswerText.error["choise_type_name"])
     logger.info(f"{message.chat.id}")
 
 
@@ -180,7 +179,7 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
     keyboard = Reply.default()
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=ANSWER_CALLBACK['new_user']['choise_group__name_finish'](group__name),
+                                             text=AnswerCallback.new_user['choise_group__name_finish'](group__name),
                                              show_alert=False)
 
     await callback.message.delete()
@@ -218,7 +217,7 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
     keyboard = Reply.default()
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=ANSWER_CALLBACK['new_user']['choise_teacher_name_finish'](
+                                             text=AnswerCallback.new_user['choise_teacher_name_finish'](
                                                  teacher_name),
                                              show_alert=False)
 
@@ -237,14 +236,14 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
 @rate_limit(1)
 async def error_choise_name(message: Message):
     """Обработчик левых сообщений от новых пользователей при выборе группы/преподавателя"""
-    await message.answer(ANSWER_TEXT["error"]["choise_name"])
+    await message.answer(AnswerText.error["choise_name"])
     logger.info(f"{message.chat.id}")
 
 
 async def choise_type_name(message: Message, text=None):
     """Выбор типа профиля"""
     if text is None:
-        text = ANSWER_TEXT["new_user"]["choise_type_name"]
+        text = AnswerText.new_user["choise_type_name"]
     keyboard = Inline.type_names()
 
     await message.answer(text, reply_markup=keyboard)
@@ -267,7 +266,7 @@ async def timetable(message: Message):
 
     if type_name is None or name_id is None:
         """У пользователя нет основной подписки"""
-        return await message.answer(ANSWER_TEXT['no_main_subscription'])
+        return await message.answer(AnswerText.no_main_subscription)
 
     name_ = Select.name_by_id(type_name, name_id)
 
@@ -316,7 +315,7 @@ async def settings(message: Message, callback=None, edit_text=False):
         name_ = Select.name_by_id(table_name, name_id)
         user_settings_data[1] = name_
 
-    text = ANSWER_TEXT['settings']
+    text = AnswerText.settings
     keyboard = Inline.user_settings(user_settings_data)
 
     if edit_text:
@@ -345,7 +344,7 @@ async def main_settings(callback: CallbackQuery):
     user_id = callback.message.chat.id
     user_settings_data = list(Select.user_info(user_id))
 
-    text = ANSWER_TEXT['main_settings']
+    text = AnswerText.main_settings
     keyboard = Inline.main_settings(user_settings_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -358,7 +357,7 @@ async def settings_info(callback: CallbackQuery):
     user_id = callback.message.chat.id
     settings_name = callback.data.split()[-1]
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=ANSWER_CALLBACK['settings_info'][settings_name],
+                                             text=AnswerCallback.settings_info[settings_name],
                                              show_alert=True)
     logger.info(f"{user_id} | {settings_name}")
 
@@ -381,12 +380,23 @@ async def support(callback: CallbackQuery, last_ind=-1):
 
     rub_balance_value = Select.config('rub_balance')
 
-    text = ANSWER_TEXT['support']
+    text = AnswerText.support
     keyboard = Inline.support(callback.data, last_callback_data, rub_balance_value)
 
-    await callback.message.edit_text(text,
-                                     reply_markup=keyboard,
-                                     disable_web_page_preview=True)
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.bot.answer_callback_query(callback.id)
+    logger.info(f"{user_id}")
+
+
+async def donate(callback: CallbackQuery, last_ind=-1):
+    """Вывести меню с вариантами донейшинов"""
+    user_id = callback.message.chat.id
+    last_callback_data = get_callback_values(callback, last_ind)[-1]
+
+    text = AnswerText.donate
+    keyboard = Inline.donate(last_callback_data)
+
+    await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
     logger.info(f"{user_id}")
 
@@ -395,6 +405,13 @@ async def future_updates(callback: CallbackQuery, last_ind=-1):
     last_callback_data = get_callback_values(callback, last_ind)[-1]
 
     text = Select.config("future_updates")
+
+    '''    
+    if text in (None, ''):
+        return await callback.bot.answer_callback_query(callback_query_id=callback.id,
+                                                        text=AnswerCallback.error)
+    '''
+
     keyboard = Inline.get_back_button(last_callback_data, return_keyboard=True)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -434,7 +451,7 @@ async def spam_or_subscribe_name_id(callback: CallbackQuery, last_ind=-1):
                                    remove_=None)
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=ANSWER_CALLBACK['spam_or_subscribe_name_id'](action_type, result),
+                                             text=AnswerCallback.spam_or_subscribe_name_id(action_type, result),
                                              show_alert=False)
 
     logger.info(f"{user_id} | {short_type_name} | {action_type} | {name_id}")
@@ -467,7 +484,7 @@ async def main_subscribe_name_id(callback: CallbackQuery, last_ind=-1):
         Update.user_settings(user_id, 'name_id', 'NULL', convert_val_text=False)
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=ANSWER_CALLBACK['main_subscribe_name_id'](result),
+                                             text=AnswerCallback.main_subscribe_name_id(result),
                                              show_alert=False)
 
     logger.info(f"{user_id} | {type_column_name} | {name_id}")
@@ -487,7 +504,7 @@ async def group__card(callback: CallbackQuery, last_ind=-2):
 
     group__user_info = Select.user_info_name_card("group_", user_id, group__id)
 
-    text = ANSWER_TEXT['group__card']
+    text = AnswerText.group__card
     keyboard = Inline.group__card(group__user_info,
                                   callback_data=callback.data,
                                   last_callback_data=last_callback_data)
@@ -506,7 +523,7 @@ async def teacher_card(callback: CallbackQuery, last_ind=-2):
 
     teacher_user_info = Select.user_info_name_card("teacher", user_id, teacher_id)
 
-    text = ANSWER_TEXT['teacher_card']
+    text = AnswerText.teacher_card
     keyboard = Inline.teacher_card(teacher_user_info,
                                    callback_data=callback.data,
                                    last_callback_data=last_callback_data)
@@ -521,7 +538,7 @@ async def week_days_main_timetable(callback: CallbackQuery, last_ind=-1):
     user_id = callback.message.chat.id
     last_callback_data = get_callback_values(callback, last_ind)[-1]
 
-    text = ANSWER_TEXT['week_days_main_timetable']
+    text = AnswerText.week_days_main_timetable
     keyboard = Inline.week_days_main_timetable(current_week_day_id=datetime.now().weekday(),
                                                callback_data=callback.data,
                                                last_callback_data=last_callback_data)
@@ -582,7 +599,7 @@ async def get_main_timetable_by_week_day_id(callback: CallbackQuery, last_ind=-1
 
     if not data_main_timetable:
         week_day = get_week_day_name_by_id(week_day_id, type_case="prepositional", bold=False)
-        text = ANSWER_CALLBACK['not_timetable_by_week_day'](week_day)
+        text = AnswerCallback.not_timetable_by_week_day(week_day)
         await callback.bot.answer_callback_query(callback_query_id=callback.id,
                                                  text=text)
 
@@ -608,7 +625,7 @@ async def months_history_ready_timetable(callback: CallbackQuery, last_ind=-1):
 
     months_array = Select.months_ready_timetable()
 
-    text = ANSWER_TEXT['months_history_ready_timetable']
+    text = AnswerText.months_history_ready_timetable
     keyboard = Inline.months_ready_timetable(months_array, callback.data, last_callback_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -632,11 +649,11 @@ async def dates_ready_timetable(callback: CallbackQuery, last_ind=-1):
     if not dates_array:
         """Если нет расписания ни на одну дату"""
         return await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                                        text=ANSWER_CALLBACK['not_ready_timetable_by_month'](
+                                                        text=AnswerCallback.not_ready_timetable_by_month(
                                                             month_translate(month)),
                                                         show_alert=False)
 
-    text = ANSWER_TEXT['dates_ready_timetable'](name_, month_translate(month))
+    text = AnswerText.dates_ready_timetable(name_, month_translate(month))
     keyboard = Inline.dates_ready_timetable(dates_array, callback.data, last_callback_data)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -733,7 +750,7 @@ async def view_ready_timetable(callback: CallbackQuery, last_ind=-1, type_name=N
         if not dates_array:
             """Расписание на выбранную дату отсутствует"""
             return await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                                            text=ANSWER_CALLBACK['not_ready_timetable'],
+                                                            text=AnswerCallback.not_ready_timetable,
                                                             show_alert=False)
 
         date_ = dates_array[0].strftime("%d.%m.%Y")
@@ -778,14 +795,14 @@ async def close(callback: CallbackQuery):
 @rate_limit(1)
 async def call_schedule(message: Message):
     """Расписание звонков"""
-    await message.answer(ANSWER_TEXT['call_schedule'])
+    await message.answer(AnswerText.call_schedule)
 
 
 @rate_limit(1)
 async def help_message(message: Message):
     """Вывести help-сообщение"""
     user_id = message.chat.id
-    await message.answer(ANSWER_TEXT['help'])
+    await message.answer(AnswerText.help)
     logger.info(f"{user_id}")
 
 
@@ -793,7 +810,7 @@ async def help_message(message: Message):
 async def show_keyboard(message: Message):
     """Показать клавиатуру"""
     user_id = message.chat.id
-    text = ANSWER_TEXT['show_keyboard']
+    text = AnswerText.show_keyboard
     keyboard = Reply.default()
     if user_id in ADMINS:
         keyboard = Reply.default_admin()
@@ -806,7 +823,7 @@ async def show_keyboard(message: Message):
 async def other_messages(message: Message):
     """Обработчик сторонних сообщений"""
     user_id = message.chat.id
-    text = random.choice(ANSWER_TEXT['other_messages'])
+    text = random.choice(AnswerText.other_messages)
     await message.answer(text=text)
     logger.info(f"{user_id}")
 
@@ -894,6 +911,9 @@ def register_user_handlers(dp: Dispatcher):
 
     dp.register_callback_query_handler(support,
                                        lambda call: check_call(call, ['support']))
+
+    dp.register_callback_query_handler(donate,
+                                       lambda call: check_call(call, ['donate']))
 
     dp.register_callback_query_handler(future_updates,
                                        lambda call: check_call(call, ['future_updates']))
