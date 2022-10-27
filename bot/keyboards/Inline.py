@@ -158,7 +158,7 @@ def user_settings(user_settings_data: list,
     keyboard = create_name_list(keyboard, teachers_array, "t", row_width=row_width_teacher)
 
     main_settings_btn = Button("⚙").inline(f"s ms")
-    support_btn = Button("Поддержать 💳").inline(f"s support")
+    support_btn = Button("Поддержать").inline(f"s support")
 
     keyboard.add(main_settings_btn, support_btn)
 
@@ -201,20 +201,37 @@ def support(callback_data: str,
     """Меню поддержки"""
     keyboard = InlineKeyboardMarkup()
 
-    # qiwi_balance_btn = Button(f"Баланс Qiwi-кошелька: {rubBalance} ₽").inline("*", url=None)    # Donate.QIWI
-    tinkoff_btn = Button('💶 Тинькофф 💶').inline("", url=Donate.TINKOFF)
     vk_btn = Button('💬 Вконтакте 💬').inline("", url=Communicate.VK)
-    # inst_btn = Button('📷 Instagram 📷').inline("", url=Communicate.INSTAGRAM)
+    inst_btn = Button('📷 Instagram 📷').inline("", url=Communicate.INSTAGRAM)
     future_updates_btn = Button("⚠ Баги и ошибки ⚠").inline(f"{callback_data} future_updates")
     report_problem_btn = Button("✏ Сообщить о проблеме ✏").inline("", url="tg://user?id=1020624735")
-    # sberbank_btn = Button('💶 Сбер').inline("", url=Donate.SBERBANK)
+    donate_btn = Button("💳 Отправить донат 💳").inline(f"{callback_data} donate")
+    back_btn = get_back_button(last_callback_data)
+
+    keyboard.add(vk_btn)
+    keyboard.add(inst_btn)
+    keyboard.add(future_updates_btn)
+    keyboard.add(report_problem_btn)
+    keyboard.add(donate_btn)
+    keyboard.add(back_btn)
+
+    return keyboard
+
+
+def donate(last_callback_data: str):
+    """Меню с вариантами донатов"""
+    keyboard = InlineKeyboardMarkup()
+
+    # qiwi_balance_btn = Button(f"Баланс Qiwi: {rubBalance} ₽").inline("*", url=None)    # Donate.QIWI
+    tinkoff_btn = Button('💳 Тинькофф 💳').inline("", url=Donate.TINKOFF)
+    sberbank_btn = Button('💶 Сбер 💶').inline("", url=Donate.SBERBANK)
+    yoomoney_btn = Button('💷 ЮMoney 💷').inline("", url=Donate.YOOMONEY)
     back_btn = get_back_button(last_callback_data)
 
     # keyboard.add(qiwi_balance_btn)
-    keyboard.add(vk_btn)
-    keyboard.add(future_updates_btn)
-    keyboard.add(report_problem_btn)
     keyboard.add(tinkoff_btn)
+    keyboard.add(sberbank_btn)
+    keyboard.add(yoomoney_btn)
     keyboard.add(back_btn)
 
     return keyboard
