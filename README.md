@@ -77,7 +77,7 @@ sudo apt-get install libpq-dev
 sudo apt-get install python-dev
 ```
 
-Если возникают проблемы с локалью (база данных не воскринивает русский язык), то настриваем через пакет:
+Если возникают проблемы с локалью (база данных не воспринимает русский язык), то настраиваем через пакет:
 ```
 dpkg-reconfigure locales
 apt-get install language-pack-ru
