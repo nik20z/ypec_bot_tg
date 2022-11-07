@@ -29,6 +29,8 @@
 ## Порядок установки на VPS
 
 ```
+sudo adduser ypec
+
 sudo apt update
 sudo apt upgrade
 sudo apt install python3.8
@@ -54,11 +56,30 @@ pip3 install psycopg2-binary
 pip3 install requests
 pip3 install transliterate
 
+cd /home/ypec
+git clone https://github.com/nik20z/ypec_bot.git
+```
+
+Перед созданием службы, перезапускающей скрипт, необходимо в папку /etc/systemd/system поместить файл ypec_bot.service
+```
 apt-get install systemd
 systemctl daemon-reload
 systemctl enable ypec_bot
 systemctl start ypec_bot
 systemctl status ypec_bot
+
+```
+
+Если возникают проблемы с установкой python
+```
+sudo apt-get install libpq-dev
+sudo apt-get install python-dev
+```
+
+Если возникают проблемы с локалью (база данных не воскринивает русский язык), то настриваем через пакет:
+```
+dpkg-reconfigure locales
+apt-get install language-pack-ru
 ```
 
 <p align="center">
