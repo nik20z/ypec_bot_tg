@@ -4,10 +4,12 @@ from bot.database import Select
 
 
 def get_list_tuples(a):
+    """Конвертировать массив кортежей в обычный массив"""
     return [(x,) for x in a if x is not None]
 
 
 def main_timetable(data: list):
+    """Занести в таблицу main_timetable данные об основном расписании"""
     query = """INSERT INTO main_timetable
                     (group__id, 
                     week_day_id,
@@ -17,15 +19,17 @@ def main_timetable(data: list):
                     teacher_id, 
                     audience_id)
                 VALUES ({0},%s,%s,%s,{1},{2},{3})
-                ON CONFLICT DO NOTHING""".format(Select.query_info_by_name('group_', default_method=True),
-                                                 Select.query_info_by_name('lesson', default_method=True),
-                                                 Select.query_info_by_name('teacher'),
-                                                 Select.query_info_by_name('audience', default_method=True))
+                ON CONFLICT DO NOTHING
+                """.format(Select.query_info_by_name('group_', default_method=True),
+                           Select.query_info_by_name('lesson', default_method=True),
+                           Select.query_info_by_name('teacher'),
+                           Select.query_info_by_name('audience', default_method=True))
     cursor.executemany(query, data)
     connection.commit()
 
 
 def replacement(data: list, table_name="replacement"):
+    """Занести данные о заменах"""
     query = """INSERT INTO {0}
                     (group__id,
                      num_lesson,
@@ -43,6 +47,7 @@ def replacement(data: list, table_name="replacement"):
 
 
 def ready_timetable(data: list):
+    """Занести данные о готовом расписании"""
     query = """INSERT INTO ready_timetable
                             (date_,
                              group__id,
@@ -51,15 +56,17 @@ def ready_timetable(data: list):
                              teacher_id,
                              audience_id)
                         VALUES (%s,{0},%s,{1},{2},{3})
-                        ON CONFLICT DO NOTHING""".format(Select.query_info_by_name('group_', default_method=True),
-                                                         Select.query_info_by_name('lesson', similari_value=0.8),
-                                                         Select.query_info_by_name('teacher'),
-                                                         Select.query_info_by_name('audience', default_method=True))
+                        ON CONFLICT DO NOTHING
+                        """.format(Select.query_info_by_name('group_', default_method=True),
+                                   Select.query_info_by_name('lesson', similari_value=0.8),
+                                   Select.query_info_by_name('teacher'),
+                                   Select.query_info_by_name('audience', default_method=True))
     cursor.executemany(query, data)
     connection.commit()
 
 
 def group_(group__names: list):
+    """Занести в таблицу group_ новые группы"""
     group_names_in_table = Select.all_info(table_name="group_", column_name="group__name")
     names_array = list(set(group__names) - set(group_names_in_table))
 
@@ -72,6 +79,7 @@ def group_(group__names: list):
 
 
 def teacher(teacher_names: list):
+    """Занести в таблицу teacher новых преподавателей"""
     teacher_names_in_table = Select.all_info(table_name="teacher", column_name="teacher_name")
     names_array = list(set(teacher_names) - set(teacher_names_in_table))
 
@@ -84,11 +92,18 @@ def teacher(teacher_names: list):
 
 
 def lesson(lesson_names: list):
+    """Занести в таблицу lesson новые названия предметов"""
     lesson_names_in_table = Select.all_info(table_name="lesson", column_name="lesson_name")
-    [print(f"lesson_names |{x}|") for x in lesson_names]
     names_array = list(set(lesson_names) - set(lesson_names_in_table))
 
-    [print(f"|{x}|") for x in names_array]
+    """
+    Необходимо сделать ещё один прогон массива names_array для того, чтобы найти максимально похожие предметы
+    и в таком случае просто не добавлять в таблицу новый
+    
+    буду можно высчитывать расстояние Ливенштейна, но нужно учесть, что могут быть п/з п/г и тд
+    
+    для начала убираем предметы с лишними или недостающими пробелами
+    """
 
     query = """INSERT INTO lesson
                 (lesson_name)
@@ -99,6 +114,7 @@ def lesson(lesson_names: list):
 
 
 def audience(audience_names: list):
+    """Занести в таблицу audience новые аудитории"""
     audience_names_in_table = Select.all_info(table_name="audience", column_name="audience_name")
     names_array = list(set(audience_names) - set(audience_names_in_table))
 
@@ -111,11 +127,13 @@ def audience(audience_names: list):
 
 
 def new_user(data_: tuple):
+    """Добавляем нового пользователя"""
     cursor.execute("INSERT INTO telegram (user_id, user_name, joined) VALUES (%s, %s, %s)", data_)
     connection.commit()
 
 
 def config(key_: str, value_: str):
+    """Заносим или обновляем данные в таблице config по ключу и значению"""
     query = """INSERT INTO config
                         (key_, value_)
                         VALUES (%s, %s)
@@ -123,4 +141,17 @@ def config(key_: str, value_: str):
                         SET value_ = EXCLUDED.value_
                         """
     cursor.execute(query, (key_, value_,))
+    connection.commit()
+
+
+def time_replacement_appearance(table_name="stat", column_date_name="date_", colomn_time_name="rep_new_time"):
+    """Заносим в таблицу stat информацию о времени появления замен на сайте (это основное назначение)"""
+    query = """INSERT INTO {0} ({1}, {2}) 
+               VALUES (current_date, current_time)
+               ON CONFLICT ({1}) DO UPDATE
+               SET {2} = current_time
+               """.format(table_name,
+                          column_date_name,
+                          colomn_time_name)
+    cursor.execute(query)
     connection.commit()

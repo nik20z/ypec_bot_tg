@@ -122,12 +122,13 @@ def query_(query: str):
     return cursor.fetchall()
 
 
-def query_info_by_name(table_name: str, info='id', default_method=False, value=None, similari_value=0.45):
+def query_info_by_name(table_name: str, info='id', default_method=False, value=None, similari_value=0.45, limit=1):
     """Получить данные из конкретной таблицы по конкретному условию для lesson, audience, group_, teacher"""
     if default_method:
         query = """SELECT {0}_{1}
                     FROM {0}
-                    WHERE {0}_name = %s""".format(table_name, info)
+                    WHERE {0}_name = %s
+                    """.format(table_name, info)
     else:
         query = """WITH similari AS (SELECT {0}_id,
                                             {0}_name,
@@ -137,14 +138,15 @@ def query_info_by_name(table_name: str, info='id', default_method=False, value=N
                     FROM similari
                     WHERE similari_value > {2}
                     ORDER BY similari_value DESC, similari.{0}_name
-                    LIMIT 1
+                    LIMIT {3}
                     """.format(table_name,
                                info,
-                               similari_value)
+                               similari_value,
+                               limit)
     if value is not None:
         cursor.execute(query, (value,))
         result = concert_fetchall_to_list(cursor.fetchall())
-        return None if not result else result[0]
+        return result
 
     return f"({query})"
 
@@ -192,7 +194,8 @@ def user_info_by_column_names(user_id: int, column_names=None, table_name="teleg
 
 def user_info_name_card(type_name: str, user_id: int, name_id: int, table_name="telegram"):
     """Информация о подписках пользователя"""
-    query = """SELECT {0}_name,
+    query = """SELECT {0}_id, 
+                      {0}_name,
                         case 
                             when type_name
                             then {2} = name_id and '{0}' = 'group_'
@@ -202,7 +205,11 @@ def user_info_name_card(type_name: str, user_id: int, name_id: int, table_name="
                         {2} = ANY(spam_{0}_ids)
                 FROM {3}
                 LEFT JOIN {0} ON {2} = {0}.{0}_id
-                WHERE user_id = {1}""".format(type_name, user_id, name_id, table_name)
+                WHERE user_id = {1}
+                """.format(type_name,
+                           user_id,
+                           name_id,
+                           table_name)
     cursor.execute(query)
     return cursor.fetchone()
 
@@ -220,7 +227,7 @@ def courses_and_group__name_array():
 
 
 def group_():
-    """"""
+    """Получаем массив с группами, сгруппированными по курсам"""
     query = """SELECT json_object_agg(group__id, 
                                       group__name ORDER BY group__name) 
                 FROM group_ 
@@ -230,9 +237,9 @@ def group_():
     return cursor.fetchall()[::-1]
 
 
-def all_info(table_name: str, column_name="group__name"):
+def all_info(table_name: str, column_name="group__name") -> list:
     """Получить массив всех строчек по одной колонке"""
-    query = """SELECT {1} FROM {0}""".format(table_name, column_name)
+    query = "SELECT {1} FROM {0}".format(table_name, column_name)
     cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
 
@@ -244,18 +251,49 @@ def teacher(columns=['teacher_id', 'teacher_name']):
     return cursor.fetchall()
 
 
+def lessons_list_by_teacher(teacher_name, table_name="main_timetable_info"):
+    """Получаем список дисциплин, которые ведёт преподаватель"""
+    # AND lesson_name NOT SIMILAR TO '%/%'
+    query = """SELECT DISTINCT lesson_name
+               FROM {0}
+               WHERE teacher_name = '{1}' 
+                    
+                    AND lesson_name NOT ILIKE '%расписан%'
+                    AND lesson_name NOT ILIKE '%консульт%' 
+                    AND num_lesson != ''
+               ORDER BY lesson_name
+               """.format(table_name, teacher_name)
+    cursor.execute(query)
+    return concert_fetchall_to_list(cursor.fetchall())
+
+
 @check_none
 def value_by_id(table_name_: str, column_names: list, id_: str, check_id_name_column: str):
-    """Получить конкретный параметр: указывается Таблица, Название колонки, Значение, Название колонки"""
-    query = "SELECT {1} FROM {0} WHERE {2} = %s".format(table_name_, ', '.join(column_names), check_id_name_column)
+    """Получить конкретный параметр:
+    table_name_ - Таблица,
+    column_names - Название колонок для select,
+    id_ - Значение,
+    check_id_name_column - Название колонки для проверки
+    """
+    query = "SELECT {1} FROM {0} WHERE {2} = %s".format(table_name_,
+                                                         ', '.join(column_names),
+                                                         check_id_name_column)
     cursor.execute(query, (id_,))
     return cursor.fetchone()
 
 
 @check_none
-def name_by_id(type_name, name_id):
-    """Получить название группы или преподавателя по id"""
+def name_by_id(type_name: str, name_id: int):
+    """Получить name_ группы или преподавателя по id"""
     query = "SELECT {0}_name FROM {0} WHERE {0}_id = {1}".format(type_name, name_id)
+    cursor.execute(query)
+    return cursor.fetchone()
+
+
+@check_none
+def id_by_name(type_name: str, name_: str):
+    """Получить id группы или преподавателя по name_"""
+    query = "SELECT {0}_id FROM {0} WHERE {0}_name = '{1}'".format(type_name, name_)
     cursor.execute(query)
     return cursor.fetchone()
 
@@ -306,7 +344,7 @@ def names_rep_different(type_name: str):
                 SELECT rep_grouping.{0}_id
                 FROM rep_grouping
                 LEFT JOIN rep_temp_grouping ON rep_grouping.{0}_id = rep_temp_grouping.{0}_id
-                WHERE rep_grouping::text != rep_temp_grouping::text 
+                WHERE rep_grouping::text != rep_temp_grouping::text
                 """.format(type_name,
                            type_name_invert)
     cursor.execute(query)
@@ -345,6 +383,23 @@ def months_ready_timetable():
                FROM ready_timetable"""
     cursor.execute(query)
     return concert_fetchall_to_list(cursor.fetchall())
+
+
+@check_none
+def fresh_ready_timetable_date(type_name=None, name_id=None):
+    """Получить дату актуального расписания по типу профиля и id"""
+    where_add = "True"
+    if type_name is not None and name_id is not None:
+        where_add = f"{type_name}_id = {name_id}"
+
+    query = """SELECT to_char(date_, 'DD.MM.YYYY')
+               FROM ready_timetable
+               WHERE {0}
+               ORDER BY date_ DESC
+               LIMIT 1
+               """.format(where_add)
+    cursor.execute(query)
+    return cursor.fetchone()
 
 
 def user_ids(table_name="telegram"):

@@ -40,7 +40,7 @@ view_create_queries = {
                                     LEFT JOIN group_ ON ready_timetable.group__id = group_.group__id
                                     LEFT JOIN lesson ON ready_timetable.lesson_name_id = lesson.lesson_id 
                                     LEFT JOIN teacher ON ready_timetable.teacher_id = teacher.teacher_id 
-                                    LEFT JOIN audience ON ready_timetable.audience_id = audience.audience_id"""
+                                    LEFT JOIN audience ON ready_timetable.audience_id = audience.audience_id;"""
 }
 
 table_create_queries = {
@@ -114,14 +114,16 @@ table_create_queries = {
 
     "stat": """CREATE TABLE IF NOT EXISTS stat (
                                         date_ date NOT NULL PRIMARY KEY,
+                                        rep_new_time time,
                                         new_users smallint,
-                                        cnt_requests_callback integer,
-                                        cnt_requests_message integer
+                                        cnt_req_callback integer,
+                                        cnt_req_message integer
                                         );"""
 }
 
 
 def drop(table_name=None, cascade_state=False):
+    """Удаляем таблицу"""
     if table_name is None:
         for table_name in table_create_queries.keys():
             drop(table_name)
@@ -131,6 +133,7 @@ def drop(table_name=None, cascade_state=False):
 
 
 def create(table_name=None):
+    """Создаём таблицу"""
     if table_name is None:
         for table_name in table_create_queries.keys():
             create(table_name=table_name)
@@ -140,6 +143,7 @@ def create(table_name=None):
 
 
 def create_view(view_name=None):
+    """Создаём представление"""
     if view_name is None:
         for view_name in view_create_queries.keys():
             create_view(view_name=view_name)
