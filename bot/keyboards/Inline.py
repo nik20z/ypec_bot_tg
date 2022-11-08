@@ -17,10 +17,11 @@ def type_names():
     """Выбор профиля"""
     keyboard = InlineKeyboardMarkup(row_width=2)
 
-    for text, callback_data in {'Студент': 'g_list',
-                                'Преподаватель': 't_list'}.items():
-        btn = Button(text).inline(callback_data)
-        keyboard.add(btn)
+    student_btn = Button("Студент").inline("g_list")
+    teacher_btn = Button("Преподаватель").inline("t_list")
+
+    keyboard.add(student_btn)
+    keyboard.add(teacher_btn)
 
     return keyboard
 
@@ -223,9 +224,9 @@ def donate(last_callback_data: str):
     keyboard = InlineKeyboardMarkup()
 
     # qiwi_balance_btn = Button(f"Баланс Qiwi: {rubBalance} ₽").inline("*", url=None)    # Donate.QIWI
-    tinkoff_btn = Button('💳 Тинькофф 💳').inline("", url=Donate.TINKOFF)
-    sberbank_btn = Button('💶 Сбер 💶').inline("", url=Donate.SBERBANK)
-    yoomoney_btn = Button('💷 ЮMoney 💷').inline("", url=Donate.YOOMONEY)
+    tinkoff_btn = Button('🟡 Тинькофф 🟡').inline("", url=Donate.TINKOFF)
+    sberbank_btn = Button('🟢 Сбер 🟢').inline("", url=Donate.SBERBANK)
+    yoomoney_btn = Button('🟣 ЮMoney 🟣').inline("", url=Donate.YOOMONEY)
     back_btn = get_back_button(last_callback_data)
 
     # keyboard.add(qiwi_balance_btn)
@@ -243,10 +244,11 @@ def group__card(group__user_info: list,
     """Карточка группы"""
     keyboard = InlineKeyboardMarkup()
 
-    group__name = group__user_info[0]
-    main_subscribe = group__user_info[1]
-    subscribe_state = group__user_info[2]
-    spam_state = group__user_info[3]
+    # group__id = group__user_info[0]
+    group__name = group__user_info[1]
+    main_subscribe = group__user_info[2]
+    subscribe_state = group__user_info[3]
+    spam_state = group__user_info[4]
 
     group__name_btn = Button(group__name).inline(f"* {group__name}")
 
@@ -277,10 +279,11 @@ def teacher_card(teacher_user_info: tuple,
     """Карточка преподавателя"""
     keyboard = InlineKeyboardMarkup()
 
-    teacher_name = teacher_user_info[0]
-    main_subscribe = teacher_user_info[1]
-    subscribe_state = teacher_user_info[2]
-    spam_state = teacher_user_info[3]
+    teacher_id = teacher_user_info[0]
+    teacher_name = teacher_user_info[1]
+    main_subscribe = teacher_user_info[2]
+    subscribe_state = teacher_user_info[3]
+    spam_state = teacher_user_info[4]
 
     group__name_btn = Button(teacher_name).inline(f"* {teacher_name}")
 
@@ -288,6 +291,7 @@ def teacher_card(teacher_user_info: tuple,
 
     week_days_main_timetable_btn = Button("Основное расписание").inline(f"{callback_data} wdmt")
     history_ready_timetable_btn = Button("История").inline(f"{callback_data} mhrt")
+    lessons_list_btn = Button("📋 Список дисциплин").inline(f"{callback_data} lessons_list {teacher_id}")
     spam_text_btn = Button("🌀 Рассылка").inline("settings_info spamming")
     spam_btn = Button(get_condition_smile(spam_state)).inline(f"{callback_data} sp_tch")
     subscribe_text_btn = Button("☄ Подписка").inline("settings_info subscribe")
@@ -298,6 +302,7 @@ def teacher_card(teacher_user_info: tuple,
     keyboard.add(group__name_btn, main_subscribe_btn)
     keyboard.add(week_days_main_timetable_btn)
     keyboard.add(history_ready_timetable_btn)
+    keyboard.add(lessons_list_btn)
     keyboard.add(spam_text_btn, spam_btn)
     keyboard.add(subscribe_text_btn, subscribe_btn)
     keyboard.add(back_btn, ready_timetable_btn)
@@ -357,7 +362,7 @@ def dates_ready_timetable(dates_array: list,
                           callback_data: str,
                           last_callback_data: str):
     """Список дат для просмотра истории расписания"""
-    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard = InlineKeyboardMarkup(row_width=2)
     buttons = []
 
     get_ready_timetable_by_month_btn = Button("📥 Скачать txt 📥").inline(f"{callback_data} download_ready_timetable_by_month")
@@ -372,6 +377,10 @@ def dates_ready_timetable(dates_array: list,
 
         date__btn = Button(date__text_btn).inline(date__callback)
         buttons.append(date__btn)
+
+        if week_day_name == 'Понедельник':
+            keyboard.add(*buttons)
+            buttons.clear()
 
     keyboard.add(*buttons)
     keyboard.add(get_back_button(last_callback_data))
