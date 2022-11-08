@@ -5,6 +5,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import BotCommand
 from aiogram.utils import executor
+import nest_asyncio
 
 # My Modules
 from bot.config import array_times
@@ -53,6 +54,8 @@ async def on_shutdown(dp: Dispatcher) -> None:
 
 
 def start_bot():
+    nest_asyncio.apply()
+
     Table.create()
     Table.create_view()
     Table.check_main_timetable()

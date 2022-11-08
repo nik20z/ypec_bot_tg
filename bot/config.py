@@ -12,8 +12,7 @@ WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 WEBAPP_HOST = '127.0.0.1'  # or ip
 WEBAPP_PORT = 4040
 
-array_times = {'check_replacement': {"weekday": ("00:00",
-                                                 "00:05",
+array_times = {'check_replacement': {"weekday": ("00:05",
 
                                                  "9:00",
                                                  "9:20",
@@ -75,11 +74,9 @@ array_times = {'check_replacement': {"weekday": ("00:00",
 
                                                  "23:00",
 
-                                                 "00:00",
                                                  "00:05"),
 
-                                     "saturday": ("00:00",
-                                                  "00:05",
+                                     "saturday": ("00:05",
 
                                                   "8:00",
                                                   "8:20",
@@ -108,14 +105,13 @@ array_times = {'check_replacement': {"weekday": ("00:00",
 
                                                   "12:00",
                                                   "13:00",
-                                                  "14:00"
-                                                  "15:00"
-                                                  "16:00"
-                                                  "17:00"
+                                                  "14:00",
+                                                  "15:00",
+                                                  "16:00",
+                                                  "17:00",
 
-                                                  "23:00"
+                                                  "23:00",
 
-                                                  "00:00",
                                                   "00:05")
                                      }
 
@@ -132,8 +128,12 @@ class AnswerText:
 
     error = {
         "choise_type_name": "Выберите профиль!",
-        "choise_name": "Я не буду реагировать на сообщения до тех пор, пока не будет сделан выбор группы или преподавателя",
-        "not_msg_pin": "У бота нет прав на закрепление сообщений",
+        "choise_name": "Закончите с выбором!"
+                       "\n"
+                       "Если ошиблись, то выберите любую группу/преподавателя"
+                       "\n"
+                       "В меню Настроек можно будет всё изменить)",
+        "not_msg_pin": "У бота нет прав на закрепление сообщений!",
         "other": "Ошибка!"
     }
 
@@ -141,8 +141,8 @@ class AnswerText:
                     "\n" \
                     "Понедельник - Пятница\n" \
                     "<u>" \
-                    "0 |  7:40  |  8:25\n" \
-                    "1 |  8:30  | 10:00\n" \
+                    "0 |   7:40 |   8:25\n" \
+                    "1 |   8:30 | 10:00\n" \
                     "2 | 10:20 | 11:50\n" \
                     "3 | 12:20 | 13:50\n" \
                     "4 | 14:05 | 15:35\n" \
@@ -153,7 +153,7 @@ class AnswerText:
                     "\n" \
                     "Суббота\n" \
                     "<u>" \
-                    "1 |  8:30  | 10:00\n" \
+                    "1 |   8:30 | 10:00\n" \
                     "2 | 10:10 | 11:40\n" \
                     "3 | 11:55 | 13:25\n" \
                     "4 | 13:35 | 15:05\n" \
@@ -171,9 +171,6 @@ class AnswerText:
              f"\n" \
              f"Ethereum (ETH):\n" \
              f"<pre>{Donate.ETHERIUM}</pre>\n" \
-             f"\n" \
-             f"Tether USD (USDT):\n" \
-             f"<pre>{Donate.USDT_TRON}</pre>\n" \
              f""
 
     group__card = "Карточка группы"
@@ -228,11 +225,14 @@ class AnswerCallback:
     not_timetable_by_week_day = lambda week_day: f"Расписания на {week_day} нет"
     not_ready_timetable = "Расписание отсутствует"
     not_ready_timetable_by_month = lambda month: f"Расписание на {month} отсутствует"
-    spam_or_subscribe_name_id = lambda action_type, result: f"{'Рассылка' if action_type == 'sp' else 'Подписка'} {'активирована' if result else 'удалена'}"
+    not_lessons_list = "Данные о дисциплинах отсутствуют"
 
+    spam_or_subscribe_name_id = lambda action_type, result: f"{'Рассылка' if action_type == 'sp' else 'Подписка'} {'активирована' if result else 'удалена'}"
     main_subscribe_name_id = lambda result: f"Основная подписка {'активирована' if result else 'удалена'}"
 
-    error = "Ошибка!"
+    error = {"default": "Ошибка!",
+             "choise_type_name": "Выберите профиль!",
+             "choise_name": "Выберите группу/преподавателя!"}
 
 
 CALL_SCHEDULE = {"weekday": {

@@ -22,7 +22,7 @@ from bot.parse import TimetableHandler
 
 
 def get_next_check_time(array_times: list, func_name: str):
-    """Расчет времени до следующего цикла в зависимости от названия функции"""
+    """Расчет времени до следующего цикла в зависимости от имени функции"""
 
     delta = 0
     one_second = 0
@@ -59,7 +59,7 @@ async def check_replacement(dp: Dispatcher):
 
     await dp.bot.send_message(chat_id=GOD_ID, text='Check Replacements')
 
-    rep_result = th.get_replacement(day="tomorrow")
+    rep_result = await th.get_replacement(day="tomorrow")
 
     if rep_result != "NO":
         """Если замены отсутствуют, то чистим таблицы"""
@@ -69,6 +69,7 @@ async def check_replacement(dp: Dispatcher):
                                lesson_type=th.week_lesson_type)
 
         if rep_result == "NEW":
+            Insert.time_replacement_appearance()
             await dp.bot.send_message(chat_id=GOD_ID, text='NEW')
             await start_spamming(dp, th.date_replacement, get_all_ids=True)
 
@@ -76,8 +77,8 @@ async def check_replacement(dp: Dispatcher):
             await dp.bot.send_message(chat_id=GOD_ID, text='UPDATE')
             await start_spamming(dp, th.date_replacement)
 
-    Table.delete('replacement_temp')
-    Insert.replacement(th.rep.data, table_name="replacement_temp")
+        Table.delete('replacement_temp')
+        Insert.replacement(th.rep.data, table_name="replacement_temp")
 
 
 async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
@@ -101,15 +102,19 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
             if name_id is None:
                 continue
 
+            '''
             name_ = Select.value_by_id(table_name_=table_name,
                                        column_names=[f"{table_name}_name"],
                                        id_=name_id,
                                        check_id_name_column=f"{table_name}_id")
+            '''
+            name_ = Select.name_by_id(table_name, name_id)
             names_array.append(name_)
 
-            data_ready_timetable = Select.ready_timetable(table_name, date_, name_)
-
             spam_user_data = Select.user_ids_telegram_by(table_name, name_id)
+
+            """Не делаем запрос, если нет id пользователей для рассылки"""
+            data_ready_timetable = Select.ready_timetable(table_name, date_, name_)
 
             for user_data in spam_user_data:
                 """Перебираем массивы с данными пользователей"""
@@ -145,14 +150,17 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
                     Update.user_settings(user_id, 'spamming', 'False', convert_val_text=False)
                     # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
 
-    avg_time_send_msg = round(sum(time_send_msg_array) / len(time_send_msg_array), 2)
-    avg_time_pin_msg = round(sum(time_pin_msg_array) / len(time_pin_msg_array), 2)
-    time_spamming = round(time.time() - t_start, 2)
+                #await asyncio.sleep(.05)
 
-    stat_message = f"Отправлено: {count_send_msg}\n " \
-                   f"Закреплено: {count_pin_msg}\n " \
-                   f"Среднее время отправки: {avg_time_send_msg}\n " \
-                   f"Среднее время закрепления: {avg_time_pin_msg}\n " \
-                   f"Общее время рассылки: {time_spamming}\n " \
-                   f"Изменилось расписание для: {'' if get_all_ids else ', '.join(names_array)}"
-    await dp.bot.send_message(GOD_ID, text=stat_message)
+    if names_array:
+        avg_time_send_msg = round(sum(time_send_msg_array) / len(time_send_msg_array), 2)
+        avg_time_pin_msg = round(sum(time_pin_msg_array) / len(time_pin_msg_array), 2)
+        time_spamming = round(time.time() - t_start, 2)
+
+        stat_message = f"Отправлено: {count_send_msg}\n " \
+                       f"Закреплено: {count_pin_msg}\n " \
+                       f"Среднее время отправки: {avg_time_send_msg}\n " \
+                       f"Среднее время закрепления: {avg_time_pin_msg}\n " \
+                       f"Общее время рассылки: {time_spamming}\n " \
+                       f"Изменилось расписание для: {'' if get_all_ids else ', '.join(names_array)}"
+        await dp.bot.send_message(GOD_ID, text=stat_message)

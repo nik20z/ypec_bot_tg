@@ -16,7 +16,7 @@ def month_translate(month_name: str):
                'aug': 'август',
                'sep': 'сентябрь',
                'oct': 'октябрь',
-               'now': 'ноябрь',
+               'nov': 'ноябрь',
                'dec': 'декабрь'
                }
     res = month_d.get(month_name.lower().strip())
