@@ -7,7 +7,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/home/ypec
-ExecStart=/usr/bin/python3 /home/ypec/bot.py
+ExecStart=/usr/bin/python3 /home/ypec/run.py
 RestartSec=10
 Restart=always
  
