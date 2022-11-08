@@ -77,11 +77,19 @@ sudo apt-get install libpq-dev
 sudo apt-get install python-dev
 ```
 
-Если возникают проблемы с локалью (база данных не воспринимает русский язык), то настраиваем через пакет:
+Настраиваем локаль через пакет:
 ```
 dpkg-reconfigure locales
 apt-get install language-pack-ru
 ```
+
+Изменяем локаль кластера базы данных
+```
+pg_lsclusters
+pg_dropcluster --stop 12 main
+pg_createcluster --locale ru_RU.utf8 --start 12 main
+```
+
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/62090150/193757014-4e816ff4-e524-4d3d-a0f9-5d64701e9ec0.png">
