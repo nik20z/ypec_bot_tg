@@ -1,3 +1,4 @@
+import aiohttp
 from bs4 import BeautifulSoup
 import requests
 
@@ -36,17 +37,7 @@ def get_teacher_names_array(one_lesson):
 
 def get_audience_array(one_lesson):
     """Создать массив аудиторий"""
-    audience = one_lesson[-2]
-    '''
-    Заменить английские буквы, похожие на русские
-    
-    '''
-    d_letters = {'A': 'А',
-                 'B': 'В'}
-
-    for en_letter, rus_letter in d_letters.items():
-        audience = audience.replace(en_letter, rus_letter)
-
+    audience = replace_english_letters(one_lesson[-2])
     for i in (',', ';'):
         if i in audience:
             return audience.split(i)
@@ -91,26 +82,35 @@ class Replacements:
         self.teacher_names = set()
         self.audience_names = set()
 
+        self.method = "async"
+
     def get_date(self, soup):
         """Получить дату с сайта"""
         date_text = soup.find("div", itemprop="articleBody").find("strong").text.lower()
         self.date = date_text.split()[2]
         self.week_lesson_type = True if "числ" in date_text else False if "знам" in date_text else None
 
-    def parse(self, day='tomorrow'):
+    async def parse(self, day='tomorrow', ):
         """Парсим замены и заносим данные в массив self.data"""
         part_link = get_part_link_by_day(day)
         url = get_full_link_by_part(main_link_ypec, part_link)
 
-        r = requests.post(url, headers=headers_ypec, verify=True)
-        # r = open('index.html', encoding='utf-8').read()
-        soup = BeautifulSoup(r.text, 'lxml')
-        table_soup = soup.find('table', class_='isp')
+        if self.method == "async":
+            session = aiohttp.ClientSession()
+            result = await session.post(url, headers=headers_ypec)
+            soup = BeautifulSoup(await result.text(), 'lxml')
+            await session.close()
+        else:
+            result = requests.post(url, headers=headers_ypec, verify=True)
+            soup = BeautifulSoup(result.text, 'lxml')
 
-        self.get_date(soup)
+        self.table_handler(soup)
 
+    def table_handler(self, soup):
         group__name = None
 
+        table_soup = soup.find('table', class_='isp')
+        self.get_date(soup)
         rows = table_soup.find_all('tr')[1:]
 
         # Обрабатываем первую строчку
@@ -133,7 +133,7 @@ class Replacements:
                 maybe_group__name = get_correct_group__name(one_td_array[0].text)
                 group__name = Select.query_info_by_name('group_',
                                                         info='name',
-                                                        value=maybe_group__name)
+                                                        value=maybe_group__name)[0]
 
                 if group__name is not None:
                     one_td_array = one_td_array[1:]
@@ -163,7 +163,7 @@ class Replacements:
 
                         maybe_teacher_name = Select.query_info_by_name('teacher',
                                                                        info='name',
-                                                                       value=teacher_name_corrected)
+                                                                       value=teacher_name_corrected)[0]
 
                         if maybe_teacher_name is None:
                             maybe_teacher_name = teacher_name_corrected

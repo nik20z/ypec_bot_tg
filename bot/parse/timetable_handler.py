@@ -1,6 +1,7 @@
-from bot.database import Table
+from bot.database import Delete
 from bot.database import Insert
 from bot.database import Select
+from bot.database import Table
 
 from bot.functions import get_day_text
 from bot.functions import get_week_day_id_by_date_
@@ -55,31 +56,33 @@ class TimetableHandler:
 
         self.lesson_names = set()
 
-    def get_main_timetable(self, type_name=None, names=None):
+    async def get_main_timetable(self, type_name=None, names=None):
         """Получаем основное расписание"""
         if names is None:
             names = []
 
-        self.mt.group__names = self.group__names
-        self.mt.teacher_names = self.teacher_names
+        #self.mt.group__names = self.group__names
+        #self.mt.teacher_names = self.teacher_names
 
         self.mt.data.clear()
 
-        self.mt.parse(type_name=type_name, names=names)
+        await self.mt.parse(type_name=type_name, names=names)
 
         Insert.lesson(self.mt.lesson_names)
         Insert.audience(self.mt.audience_names)
 
-        Table.delete('main_timetable')
+        for name_ in names:
+            name_id = Select.id_by_name(type_name, name_)
+            Delete.main_timetable(type_name, name_id)
         Insert.main_timetable(self.mt.data)
 
-    def get_replacement(self, day="tomorrow"):
+    async def get_replacement(self, day="tomorrow"):
         """Получаем замены"""
         self.rep.group__names = self.group__names
 
         self.rep.data.clear()
 
-        self.rep.parse(day=day)
+        await self.rep.parse(day=day)
         self.date_replacement = self.rep.date
         self.week_lesson_type = self.rep.week_lesson_type
 
