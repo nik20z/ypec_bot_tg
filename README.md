@@ -38,6 +38,23 @@ sudo apt install python3-pip
 
 sudo apt update
 sudo apt install postgresql postgresql-contrib
+```
+
+Настраиваем локаль через пакет:
+```
+dpkg-reconfigure locales
+apt-get install language-pack-ru
+```
+
+Изменяем локаль кластера базы данных
+```
+pg_lsclusters
+pg_dropcluster --stop 12 main
+pg_createcluster --locale ru_RU.utf8 --start 12 main
+```
+
+Продолжаем настройку
+```
 sudo -i -u postgres
   psql
     CREATE USER ypec WITH PASSWORD '123456789';
@@ -75,19 +92,6 @@ systemctl status ypec_bot
 ```
 sudo apt-get install libpq-dev
 sudo apt-get install python-dev
-```
-
-Настраиваем локаль через пакет:
-```
-dpkg-reconfigure locales
-apt-get install language-pack-ru
-```
-
-Изменяем локаль кластера базы данных
-```
-pg_lsclusters
-pg_dropcluster --stop 12 main
-pg_createcluster --locale ru_RU.utf8 --start 12 main
 ```
 
 
