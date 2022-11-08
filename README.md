@@ -32,7 +32,8 @@
 sudo adduser ypec
 
 sudo apt update
-sudo apt upgrade
+# sudo apt upgrade
+apt list --upgradable
 sudo apt install python3.8
 sudo apt install python3-pip
 
