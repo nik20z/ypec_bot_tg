@@ -40,7 +40,7 @@ sudo apt update
 sudo apt install postgresql postgresql-contrib
 ```
 
-Настраиваем локаль через пакет:
+Настраиваем локаль через пакет, выбирая ru_RU.utf8:
 ```
 dpkg-reconfigure locales
 apt-get install language-pack-ru
