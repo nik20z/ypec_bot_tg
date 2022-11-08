@@ -15,14 +15,14 @@ from bot.database import Update
 from bot.database import Select
 from bot.database import Delete
 from bot.functions import get_rub_balance
-# from bot.spamming import check_replacement
 from bot.parse import TimetableHandler
+from bot.spamming import check_replacement
 
 from bot.misc import Qiwi
 
 
 async def help_admin(message: Message):
-    await message.answer(ANSWER_TEXT["help_admin"])
+    await message.answer(AnswerText.help_admin)
 
 
 async def mailing_test_start(message: Message):
@@ -71,11 +71,44 @@ async def set_future_updates(message: Message):
 async def get_main_timetable(message: Message):
     """Парсим основное расписание"""
     t = time.time()
-    TimetableHandler().get_main_timetable(type_name='group_', names=[])
+    message_args_split = message.get_args().split(',')
+
+    th = TimetableHandler()
+
+    if message_args_split == ['ALL']:
+        await th.get_main_timetable(type_name='group_', names=[])
+
+    elif message_args_split == ['']:
+        await message.answer(f"Добавьте после команды названия групп/преподавателей")
+
+    else:
+        new_names_d = {"group_": [], "teacher": []}
+        for name_ in message_args_split:
+            new_name_group = Select.query_info_by_name('group_',
+                                                       info='name',
+                                                       value=name_,
+                                                       similari_value=0.6,
+                                                       limit=5)
+            if new_name_group:
+                new_names_d["group_"].extend(new_name_group)
+            else:
+                new_name_teacher = Select.query_info_by_name('teacher',
+                                                             info='name',
+                                                             value=name_,
+                                                             similari_value=0.45,
+                                                             limit=5)
+                new_names_d["teacher"].extend(new_name_teacher)
+
+        await message.answer(f"Будет получено расписание для: {new_names_d}")
+
+        for type_name, names_array in new_names_d.items():
+            if names_array:
+                await th.get_main_timetable(type_name=type_name, names=names_array)
 
     await message.answer(f"Основное расписание получено за {round(time.time() - t)}")
 
 
+'''
 async def get_replacement(message: Message):
     """Получаем замены"""
     th = TimetableHandler()
@@ -85,6 +118,7 @@ async def get_replacement(message: Message):
         return await message.answer(f"Замены на {th.date_replacement} получены")
 
     await message.answer(f"Замен нет")
+'''
 
 
 async def update_balance(message: Message):
@@ -97,7 +131,7 @@ async def update_balance(message: Message):
 
 async def update_timetable(message: Message):
     """Проверяем замены и составляем готовое расписание"""
-    # await check_replacement(dp)
+    #await check_replacement(dp)
     pass
 
 
@@ -167,9 +201,11 @@ def register_admin_handlers(dp: Dispatcher):
                                 IDFilter(chat_id=ADMINS),
                                 commands=['get_main_timetable'])
 
+    '''
     dp.register_message_handler(get_replacement,
                                 IDFilter(chat_id=ADMINS),
                                 commands=['get_replacement'])
+                                '''
 
     dp.register_message_handler(update_balance,
                                 IDFilter(chat_id=ADMINS),
