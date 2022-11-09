@@ -88,6 +88,13 @@ systemctl status ypec_bot
 
 ```
 
+Если необхоимо изменить часовой пояс
+```
+timedatectl
+timedatectl list-timezones
+sudo timedatectl set-timezone Europe/Moscow
+```
+
 Если возникают проблемы с установкой python
 ```
 sudo apt-get install libpq-dev
