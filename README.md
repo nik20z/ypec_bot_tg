@@ -75,6 +75,8 @@ pip3 install requests
 pip3 install transliterate
 
 cd /home/ypec
+# pip3 install -r requirements.txt
+
 git clone https://github.com/nik20z/ypec_bot.git
 ```
 
