@@ -2,26 +2,30 @@ import sys
 import time
 
 from aiogram import Dispatcher
-from aiogram.types import Message
 from aiogram.dispatcher.filters import IDFilter
-from aiogram.utils.exceptions import BotBlocked
+from aiogram.types import Message
 from aiogram.utils.exceptions import MessageTextIsEmpty
 
 # My modules
-from bot.config import GOD_ID, ADMINS
+from bot.config import GOD_ID
+from bot.config import ADMINS
 from bot.config import AnswerText
+
 from bot.database import Insert
-from bot.database import Update
+# from bot.database import Update
 from bot.database import Select
 from bot.database import Delete
+
 from bot.functions import get_rub_balance
-from bot.parse import TimetableHandler
-from bot.spamming import check_replacement
 
 from bot.misc import Qiwi
 
+from bot.parse import TimetableHandler
+# from bot.spamming import check_replacement
+
 
 async def help_admin(message: Message):
+    """Вывести help-сообщение"""
     await message.answer(AnswerText.help_admin)
 
 
@@ -46,9 +50,8 @@ async def mailing_start(message: Message):
             try:
                 await message.bot.send_message(user_id, text=sending_message)
                 count_success += 1
-            except BotBlocked:
-                await message.bot.send_message(GOD_ID, text=f"BotBlocked: {user_id}")
-                Update.user_settings(int(user_id), 'bot_blocked', 'True', convert_val_text=False)
+            except Exception as e:
+                await message.bot.send_message(GOD_ID, text=f"{e}")
 
         text = f"Успешно: {count_success}\nНеудачно: {count - count_success}\nВсего: {count}"
         await message.bot.send_message(GOD_ID, text=text)
@@ -63,6 +66,7 @@ async def delete_user(message: Message):
 
 
 async def set_future_updates(message: Message):
+    """Установить список ошибок и планы на обновления"""
     text = message.get_args()
     Insert.config("future_updates", text)
     await message.answer(text)
@@ -108,19 +112,6 @@ async def get_main_timetable(message: Message):
     await message.answer(f"Основное расписание получено за {round(time.time() - t)}")
 
 
-'''
-async def get_replacement(message: Message):
-    """Получаем замены"""
-    th = TimetableHandler()
-    th.get_replacement(day="tomorrow")
-
-    if th.rep.data:
-        return await message.answer(f"Замены на {th.date_replacement} получены")
-
-    await message.answer(f"Замен нет")
-'''
-
-
 async def update_balance(message: Message):
     """Обновляем данные о балансе Qiwi-кошелька"""
     rub_balance = get_rub_balance(Qiwi.NUMBER_PHONE, Qiwi.TOKEN)
@@ -142,6 +133,7 @@ async def restart_bot(message: Message):
 
 
 async def info_log(message: Message):
+    """Получить лог"""
     user_id = message.chat.id
     await message.bot.send_document(user_id, open("bot/log/info.log"))
 
@@ -155,9 +147,7 @@ async def error_log(message: Message):
 
 async def create_statistics(message: Message):
     """Создание отчета"""
-    text = ""
-
-    text += "Топ 10 подписок\n"
+    text = "Топ 10 подписок\n"
     for data_ in Select.count_subscribe_by_type_name("group_")[:10]:
         [name_, count_subscribe] = data_
         text += f"{name_[0]} {count_subscribe}\n"
