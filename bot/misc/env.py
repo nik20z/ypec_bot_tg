@@ -7,7 +7,7 @@ class TgKeys:
 
 
 class DataBase:
-    SETTINGS: Final = environ.get('SETTINGS', {'user': "postgres",
+    SETTINGS: Final = environ.get('SETTINGS', {'user': "ypec",
                                                'password': "123456789",
                                                'host': "localhost",
                                                'port': 5432,
