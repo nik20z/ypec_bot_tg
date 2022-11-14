@@ -1,6 +1,5 @@
 from bot.database.connect import cursor, connection
-from bot.database import Select
-from bot.parse.timetable_handler import TimetableHandler
+
 
 view_create_queries = {
     "main_timetable_info": """CREATE OR REPLACE VIEW main_timetable_info AS
@@ -153,14 +152,10 @@ def create_view(view_name=None):
 
 
 def delete(table_name=None):
+    """Удаляем все данные из таблицы"""
     if table_name is None:
         for table_name in table_create_queries.keys():
             delete(table_name)
     else:
         cursor.execute(f"DELETE FROM {table_name};")
         connection.commit()
-
-
-def check_main_timetable():
-    if not Select.check_filling_table("main_timetable"):
-        TimetableHandler().get_main_timetable(type_name="group_")

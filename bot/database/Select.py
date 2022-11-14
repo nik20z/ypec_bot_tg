@@ -19,7 +19,10 @@ def check_none(func):
 
 def concert_fetchall_to_list(result: tuple):
     """Конвертировать tuple to list"""
-    return [x[0] for x in result]
+    try:
+        return [x[0] for x in result]
+    except IndexError:
+        return []
 
 
 def check_filling_table(table_name: str) -> object:
@@ -283,7 +286,7 @@ def value_by_id(table_name_: str, column_names: list, id_: str, check_id_name_co
 
 
 @check_none
-def name_by_id(type_name: str, name_id: int):
+def name_by_id(type_name: str, name_id: str):
     """Получить name_ группы или преподавателя по id"""
     query = "SELECT {0}_name FROM {0} WHERE {0}_id = {1}".format(type_name, name_id)
     cursor.execute(query)
