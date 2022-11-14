@@ -41,8 +41,8 @@ from bot.throttling import rate_limit
 
 class UserStates(StatesGroup):
     """Класс состояний пользователя"""
-    choise_type_name = State()
-    choise_name = State()
+    choice_type_name = State()
+    choice_name = State()
 
 
 async def new_user(message: Message, state: FSMContext):
@@ -61,26 +61,26 @@ async def new_user(message: Message, state: FSMContext):
 
     new_user_data = (user_id, user_name, joined)
     Insert.new_user(new_user_data)
-
-    await state.update_data(send_help_message=True)
-    await choise_type_name(message, text=text)
-
+    
     logger.info(f"message {user_id} {user_name}")
 
+    await state.update_data(send_help_message=True)
+    await choice_type_name(message, text=text)
 
-async def choise_group__name(callback: CallbackQuery, course=1):
+
+async def choice_group__name(callback: CallbackQuery, course=1):
     """Выбор группы из списка для нового пользователя"""
     user_id = callback.message.chat.id
 
     Update.user_settings(user_id, "type_name", "True")
     group__names_array = Select.group_()
 
-    text = AnswerText.new_user["choise_name"]("group_")
+    text = AnswerText.new_user["choice_name"]("group_")
     keyboard = Inline.groups__list(group__names_array, course=course)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
-    await UserStates.choise_name.set()
+    await UserStates.choice_name.set()
     logger.info(f"callback {user_id}")
 
 
@@ -97,7 +97,7 @@ async def paging_group__list(callback: CallbackQuery, last_ind=-2, add_back_butt
 
     group__names_array = Select.group_()
 
-    text = AnswerText.new_user["choise_name"]("group_")
+    text = AnswerText.new_user["choice_name"]("group_")
     keyboard = Inline.groups__list(group__names_array,
                                    course=course,
                                    add_back_button=add_back_button,
@@ -108,19 +108,19 @@ async def paging_group__list(callback: CallbackQuery, last_ind=-2, add_back_butt
     logger.info(f"callback {user_id} {course}")
 
 
-async def choise_teacher_name(callback: CallbackQuery):
+async def choice_teacher_name(callback: CallbackQuery):
     """Выбор преподавателя из списка для нового пользователя"""
     user_id = callback.message.chat.id
 
     Update.user_settings(user_id, "type_name", "False")
     teacher_names_array = Select.teacher()
 
-    text = AnswerText.new_user["choise_name"]("teacher")
+    text = AnswerText.new_user["choice_name"]("teacher")
     keyboard = Inline.teachers_list(teacher_names_array)
 
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.bot.answer_callback_query(callback.id)
-    await UserStates.choise_name.set()
+    await UserStates.choice_name.set()
     logger.info(f"callback {user_id}")
 
 
@@ -137,7 +137,7 @@ async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_but
 
     teacher_names_array = Select.teacher()
 
-    text = AnswerText.new_user["choise_name"]("teacher")
+    text = AnswerText.new_user["choice_name"]("teacher")
     keyboard = Inline.teachers_list(teacher_names_array,
                                     start_=start_,
                                     add_back_button=add_back_button,
@@ -149,18 +149,18 @@ async def paging_teacher_list(callback: CallbackQuery, last_ind=-2, add_back_but
 
 
 @rate_limit(1)
-async def error_choise_type_name_message(message: Message):
+async def error_choice_type_name_message(message: Message):
     """Обработчик левых сообщений при выборе профиля"""
     user_id = message.chat.id
-    await message.answer(AnswerText.error["choise_type_name"])
+    await message.answer(AnswerText.error["choice_type_name"])
     logger.info(f"message {user_id}")
 
 
-async def choise_group_(callback: CallbackQuery, state: FSMContext):
+async def choice_group_(callback: CallbackQuery, state: FSMContext):
     """Обработчик выбора группы для нового пользователя"""
     user_id = callback.message.chat.id
     type_name = "group_"
-    group__id = callback.data.split()[-1]
+    group__id = str(callback.data.split()[-1])
     group__name = Select.name_by_id(type_name, group__id)
 
     Update.user_settings(user_id, "name_id", group__id)
@@ -177,7 +177,7 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
     keyboard = Reply.default()
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=AnswerCallback.new_user["choise_group__name_finish"](group__name),
+                                             text=AnswerCallback.new_user["choice_group__name_finish"](group__name),
                                              show_alert=False)
 
     await callback.message.delete()
@@ -192,7 +192,7 @@ async def choise_group_(callback: CallbackQuery, state: FSMContext):
         await help_message(callback.message)
 
 
-async def choise_teacher(callback: CallbackQuery, state: FSMContext):
+async def choice_teacher(callback: CallbackQuery, state: FSMContext):
     """Выбор преподавателя для нового пользователя"""
     user_id = callback.message.chat.id
     type_name = "teacher"
@@ -212,7 +212,7 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
     keyboard = Reply.default()
 
     await callback.bot.answer_callback_query(callback_query_id=callback.id,
-                                             text=AnswerCallback.new_user["choise_teacher_name_finish"](
+                                             text=AnswerCallback.new_user["choice_teacher_name_finish"](
                                                  teacher_name),
                                              show_alert=False)
 
@@ -229,23 +229,23 @@ async def choise_teacher(callback: CallbackQuery, state: FSMContext):
 
 
 @rate_limit(1)
-async def error_choise_name_message(message: Message):
+async def error_choice_name_message(message: Message):
     """Обработчик левых сообщений при выборе группы/преподавателя"""
     user_id = message.chat.id
-    await message.answer(AnswerText.error["choise_name"])
+    await message.answer(AnswerText.error["choice_name"])
     logger.info(f"message {user_id}")
 
 
-async def choise_type_name(message: Message, text=None):
+async def choice_type_name(message: Message, text=None):
     """Выбор типа профиля"""
     user_id = message.chat.id
 
     if text is None:
-        text = AnswerText.new_user["choise_type_name"]
+        text = AnswerText.new_user["choice_type_name"]
     keyboard = Inline.type_names()
 
     await message.answer(text, reply_markup=keyboard)
-    await UserStates.choise_type_name.set()
+    await UserStates.choice_type_name.set()
     logger.info(f"message {user_id}")
 
 
@@ -862,47 +862,47 @@ def register_user_handlers(dp: Dispatcher):
                                 lambda msg: Select.user_info(user_id=msg.chat.id) is None,
                                 content_types=['text'])
 
-    dp.register_callback_query_handler(choise_group__name,
+    dp.register_callback_query_handler(choice_group__name,
                                        lambda call: check_call(call, ['g_list']),
-                                       state=UserStates.choise_type_name)
+                                       state=UserStates.choice_type_name)
 
     dp.register_callback_query_handler(paging_group__list_state,
                                        lambda call: check_call(call, ['g_list'], ind=-2),
-                                       state=UserStates.choise_name)
+                                       state=UserStates.choice_name)
 
     dp.register_callback_query_handler(paging_group__list,
                                        lambda call: check_call(call, ['g_list'], ind=-2),
                                        state='*')
 
-    dp.register_callback_query_handler(choise_teacher_name,
+    dp.register_callback_query_handler(choice_teacher_name,
                                        lambda call: check_call(call, ['t_list']),
-                                       state=UserStates.choise_type_name)
+                                       state=UserStates.choice_type_name)
 
     dp.register_callback_query_handler(paging_teacher_list_state,
                                        lambda call: check_call(call, ['t_list'], ind=-2),
-                                       state=UserStates.choise_name)
+                                       state=UserStates.choice_name)
 
     dp.register_callback_query_handler(paging_teacher_list,
                                        lambda call: check_call(call, ['t_list'], ind=-2),
                                        state='*')
 
-    dp.register_message_handler(error_choise_type_name_message, state=UserStates.choise_type_name)
+    dp.register_message_handler(error_choice_type_name_message, state=UserStates.choice_type_name)
 
-    # dp.register_message_handler(error_choise_type_name_callback, state=UserStates.choise_type_name)
+    # dp.register_message_handler(error_choice_type_name_callback, state=UserStates.choice_type_name)
 
-    dp.register_callback_query_handler(choise_group_,
+    dp.register_callback_query_handler(choice_group_,
                                        lambda call: check_call(call, ['gc'], ind=-2),
-                                       state=UserStates.choise_name)
+                                       state=UserStates.choice_name)
 
-    dp.register_callback_query_handler(choise_teacher,
+    dp.register_callback_query_handler(choice_teacher,
                                        lambda call: check_call(call, ['tc'], ind=-2),
-                                       state=UserStates.choise_name)
+                                       state=UserStates.choice_name)
 
-    dp.register_message_handler(error_choise_name_message, state=UserStates.choise_name)
+    dp.register_message_handler(error_choice_name_message, state=UserStates.choice_name)
 
-    # dp.register_message_handler(error_choise_name_callback, state=UserStates.choise_name)
+    # dp.register_message_handler(error_choice_name_callback, state=UserStates.choice_name)
 
-    dp.register_message_handler(choise_type_name,
+    dp.register_message_handler(choice_type_name,
                                 commands=['start'],
                                 state='*')
 
