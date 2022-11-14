@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
 import time
-# from loguru import logger
+from loguru import logger
 
 from aiogram import Dispatcher
-from aiogram.utils.exceptions import BadRequest, BotBlocked
-# ChatNotFound
+from aiogram.utils.exceptions import BadRequest
+from aiogram.utils.exceptions import BotBlocked
+from aiogram.utils.exceptions import BotKicked
+from aiogram.utils.exceptions import UserDeactivated
+from aiogram.utils.exceptions import CantInitiateConversation
+from aiogram.utils.exceptions import ChatNotFound
 
 # My Modules
 from bot.config import GOD_ID
@@ -76,9 +80,10 @@ async def check_replacement(dp: Dispatcher):
         elif rep_result == "UPDATE":
             await dp.bot.send_message(chat_id=GOD_ID, text='UPDATE')
             await start_spamming(dp, th.date_replacement)
+    
 
-        Table.delete('replacement_temp')
-        Insert.replacement(th.rep.data, table_name="replacement_temp")
+    Table.delete('replacement_temp')
+    Insert.replacement(th.rep.data, table_name="replacement_temp")
 
 
 async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
@@ -86,8 +91,6 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
     t_start = time.time()
     count_send_msg = 0
     count_pin_msg = 0
-    time_send_msg_array = [0]
-    time_pin_msg_array = [0]
     names_array = []
 
     for table_name in ("group_", "teacher"):
@@ -102,12 +105,6 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
             if name_id is None:
                 continue
 
-            '''
-            name_ = Select.value_by_id(table_name_=table_name,
-                                       column_names=[f"{table_name}_name"],
-                                       id_=name_id,
-                                       check_id_name_column=f"{table_name}_id")
-            '''
             name_ = Select.name_by_id(table_name, name_id)
             names_array.append(name_)
 
@@ -118,49 +115,47 @@ async def start_spamming(dp: Dispatcher, date_, get_all_ids=False):
 
             for user_data in spam_user_data:
                 """Перебираем массивы с данными пользователей"""
-
-                [user_id, pin_msg, view_name, view_add, view_time] = user_data
-
-                text = MessageTimetable(name_,
-                                        date_,
-                                        data_ready_timetable,
-                                        view_name=view_name,
-                                        view_add=view_add,
-                                        view_time=view_time).get()
                 try:
-                    t_send_msg = time.time()
-                    message = await dp.bot.send_message(user_id, text=text)
-                    time_send_msg_array.append(time.time() - t_send_msg)
-                    count_send_msg += 1
+                    [user_id, pin_msg, view_name, view_add, view_time] = user_data
 
-                    if pin_msg:
-                        """Если пользователь просит закрепить сообщение"""
-                        try:
-                            t_pin_msg = time.time()
-                            await dp.bot.pin_chat_message(user_id, message.message_id)
-                            time_pin_msg_array.append(time.time() - t_pin_msg)
-                            count_pin_msg += 1
+                    text = MessageTimetable(name_,
+                                            date_,
+                                            data_ready_timetable,
+                                            view_name=view_name,
+                                            view_add=view_add,
+                                            view_time=view_time).get()
+                    try:
+                        message = await dp.bot.send_message(user_id, text=text)
+                        count_send_msg += 1
+                        logger.info(f"{user_id} | {table_name} | {name_id} | {name_}")
+                        
+                        
+                        if pin_msg:
+                            """Если пользователь просит закрепить сообщение"""
+                            try:
+                                await dp.bot.pin_chat_message(user_id, message.message_id)
+                                count_pin_msg += 1
 
-                        except BadRequest:
-                            if user_id < 0:
-                                await dp.bot.send_message(user_id, text=AnswerText.error["not_msg_pin"])
-                                Update.user_settings(user_id, 'pin_msg', 'False', convert_val_text=False)
+                            except BadRequest:
+                                if user_id < 0:
+                                    await dp.bot.send_message(user_id, text=AnswerText.error["not_msg_pin"])
+                                    Update.user_settings(user_id, 'pin_msg', 'False', convert_val_text=False)
+                    
+                    except (BotBlocked, BotKicked, UserDeactivated, ChatNotFound) as e:
+                        logger.info(f"{e} {user_id}")
+                        Update.user_settings(user_id, 'spamming', 'False', convert_val_text=False)
+                        # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
 
-                except BotBlocked:
-                    Update.user_settings(user_id, 'spamming', 'False', convert_val_text=False)
-                    # Update.user_settings(user_id, 'bot_blocked', 'True', convert_val_text=False)
+                    #await asyncio.sleep(.05)
+                
+                except Exception as e:
+                    logger.info(f"{e} {user_id}")
+                    await dp.bot.send_message(GOD_ID, text=text_except)
 
-                #await asyncio.sleep(.05)
+    time_spamming = round(time.time() - t_start, 2)
 
-    if names_array:
-        avg_time_send_msg = round(sum(time_send_msg_array) / len(time_send_msg_array), 2)
-        avg_time_pin_msg = round(sum(time_pin_msg_array) / len(time_pin_msg_array), 2)
-        time_spamming = round(time.time() - t_start, 2)
-
-        stat_message = f"Отправлено: {count_send_msg}\n " \
-                       f"Закреплено: {count_pin_msg}\n " \
-                       f"Среднее время отправки: {avg_time_send_msg}\n " \
-                       f"Среднее время закрепления: {avg_time_pin_msg}\n " \
-                       f"Общее время рассылки: {time_spamming}\n " \
-                       f"Изменилось расписание для: {'' if get_all_ids else ', '.join(names_array)}"
-        await dp.bot.send_message(GOD_ID, text=stat_message)
+    stat_message = f"Отправлено: {count_send_msg}\n" \
+                   f"Закреплено: {count_pin_msg}\n" \
+                   f"Общее время рассылки: {time_spamming}\n" \
+                   f"Изменилось расписание для: {', '.join(names_array)}"
+    await dp.bot.send_message(GOD_ID, text=stat_message)
