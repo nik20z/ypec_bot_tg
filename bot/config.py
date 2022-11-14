@@ -3,14 +3,6 @@ from bot.misc import Donate
 GOD_ID = 1020624735
 ADMINS = [1020624735]
 
-# webhook settings
-WEBHOOK_HOST = ''
-WEBHOOK_PATH = ''
-WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
-
-# webserver settings
-WEBAPP_HOST = '127.0.0.1'  # or ip
-WEBAPP_PORT = 4040
 
 array_times = {'check_replacement': {"weekday": ("00:05",
 
@@ -122,13 +114,13 @@ class AnswerText:
     new_user = {
         "welcome_message_private": lambda user_name: f"Привет {user_name} (^_^)\nЯ бот колледжа ЯПЭК\nДавай определим твой статус 👀",
         "welcome_message_group": lambda user_name: f"Приветствую всех в группе {user_name} (^_^)\nЯ бот колледжа ЯПЭК\nВыберите профиль",
-        "choise_type_name": "Выберите профиль",
-        "choise_name": lambda type_name: f"Выберите {'группу' if type_name == 'group_' else 'преподавателя'}"
+        "choice_type_name": "Выберите профиль",
+        "choice_name": lambda type_name: f"Выберите {'группу' if type_name == 'group_' else 'преподавателя'}"
     }
 
     error = {
-        "choise_type_name": "Выберите профиль!",
-        "choise_name": "Закончите с выбором!"
+        "choice_type_name": "Выберите профиль!",
+        "choice_name": "Закончите с выбором!"
                        "\n"
                        "Если ошиблись, то выберите любую группу/преподавателя"
                        "\n"
@@ -212,8 +204,8 @@ class AnswerText:
 
 class AnswerCallback:
     new_user = {
-        "choise_group__name_finish": lambda name_: f"Вы выбрали группу {name_}",
-        "choise_teacher_name_finish": lambda name_: f"Вы выбрали преподавателя {name_}"
+        "choice_group__name_finish": lambda name_: f"Вы выбрали группу {name_}",
+        "choice_teacher_name_finish": lambda name_: f"Вы выбрали преподавателя {name_}"
     }
     settings_info = {
         "spamming": "Получение ежедневной рассылки расписания",
@@ -231,8 +223,8 @@ class AnswerCallback:
     main_subscribe_name_id = lambda result: f"Основная подписка {'активирована' if result else 'удалена'}"
 
     error = {"default": "Ошибка!",
-             "choise_type_name": "Выберите профиль!",
-             "choise_name": "Выберите группу/преподавателя!"}
+             "choice_type_name": "Выберите профиль!",
+             "choice_name": "Выберите группу/преподавателя!"}
 
 
 CALL_SCHEDULE = {"weekday": {
