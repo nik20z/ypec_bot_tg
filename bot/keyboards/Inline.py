@@ -27,11 +27,11 @@ def type_names():
 
 
 def groups__list(group__name_array: dict,
-                 course=1,
-                 add_back_button=False,
-                 callback="g_list",
-                 last_callback_data=None,
-                 row_width=4):
+                 course: int = 1,
+                 add_back_button: bool = False,
+                 callback: str = "g_list",
+                 last_callback_data: str = None,
+                 row_width: int = 4):
     """Список групп"""
     keyboard = InlineKeyboardMarkup(row_width=row_width)
     buttons = []
@@ -61,12 +61,12 @@ def groups__list(group__name_array: dict,
 
 
 def teachers_list(teacher_names_array: list,
-                  start_=0,
-                  offset=15,
-                  add_back_button=False,
-                  callback="t_list",
-                  last_callback_data=None,
-                  row_width=2):
+                  start_: int = 0,
+                  offset: int = 15,
+                  add_back_button: bool = False,
+                  callback: str = "t_list",
+                  last_callback_data: str = None,
+                  row_width: int = 2):
     """Список преподавателей"""
     keyboard = InlineKeyboardMarkup(row_width=row_width)
     buttons = []
@@ -101,7 +101,7 @@ def teachers_list(teacher_names_array: list,
 def create_name_list(keyboard: InlineKeyboardMarkup,
                      names_array: list,
                      short_type_name: str,
-                     row_width=1):
+                     row_width: int = 1):
     """Список групп/преподавателей в меню настроек"""
     for row_names in split_array(names_array, row_width):
         name_list_button = []
@@ -119,9 +119,9 @@ def create_name_list(keyboard: InlineKeyboardMarkup,
 
 
 def user_settings(user_settings_data: list,
-                  row_width_group_=3,
-                  row_width_teacher=2,
-                  row_width=3):
+                  row_width_group_: int = 3,
+                  row_width_teacher: int = 2,
+                  row_width: int = 3):
     """Меню настроек"""
     keyboard = InlineKeyboardMarkup(row_width=row_width)
 
@@ -168,7 +168,7 @@ def user_settings(user_settings_data: list,
     return keyboard
 
 
-def main_settings(user_settings_data: list, row_width=2):
+def main_settings(user_settings_data: list, row_width: int = 2):
     """Меню основных настроек"""
     keyboard = InlineKeyboardMarkup(row_width=row_width)
 
@@ -191,6 +191,8 @@ def main_settings(user_settings_data: list, row_width=2):
         condition_text = Button(get_condition_smile(bool_obj)).inline(f"update_main_settings_bool {key}")
         keyboard.row(text_btn, condition_text)
 
+    get_sync_code_btn = Button("Код синхронизации").inline(f"s ms get_sync_code")
+    keyboard.add(get_sync_code_btn)
     keyboard.add(get_back_button("s"))
 
     return keyboard
@@ -202,17 +204,17 @@ def support(callback_data: str,
     """Меню поддержки"""
     keyboard = InlineKeyboardMarkup()
 
-    vk_btn = Button('💬 Вконтакте 💬').inline("", url=Communicate.VK)
+    vk_btn = Button('💬 Вконтакте 💬').inline("", url=Communicate.DEVELOPER)
     inst_btn = Button('📷 Instagram 📷').inline("", url=Communicate.INSTAGRAM)
     future_updates_btn = Button("⚠ Баги и ошибки ⚠").inline(f"{callback_data} future_updates")
-    report_problem_btn = Button("✏ Сообщить о проблеме ✏").inline("", url="tg://user?id=1020624735")
+    #report_problem_btn = Button("✏ Сообщить о проблеме ✏").inline("", url=Communicate.DEVELOPER)
     donate_btn = Button("💳 Отправить донат 💳").inline(f"{callback_data} donate")
     back_btn = get_back_button(last_callback_data)
 
     keyboard.add(vk_btn)
     keyboard.add(inst_btn)
     keyboard.add(future_updates_btn)
-    keyboard.add(report_problem_btn)
+    #keyboard.add(report_problem_btn)
     keyboard.add(donate_btn)
     keyboard.add(back_btn)
 
@@ -225,12 +227,14 @@ def donate(last_callback_data: str):
 
     # qiwi_balance_btn = Button(f"Баланс Qiwi: {rubBalance} ₽").inline("*", url=None)    # Donate.QIWI
     tinkoff_btn = Button('🟡 Тинькофф 🟡').inline("", url=Donate.TINKOFF)
+    boosty_btn = Button('🟠 Boosty 🟠').inline("", url=Donate.BOOSTY)
     sberbank_btn = Button('🟢 Сбер 🟢').inline("", url=Donate.SBERBANK)
     yoomoney_btn = Button('🟣 ЮMoney 🟣').inline("", url=Donate.YOOMONEY)
     back_btn = get_back_button(last_callback_data)
 
     # keyboard.add(qiwi_balance_btn)
     keyboard.add(tinkoff_btn)
+    keyboard.add(boosty_btn)
     keyboard.add(sberbank_btn)
     keyboard.add(yoomoney_btn)
     keyboard.add(back_btn)
@@ -311,9 +315,9 @@ def teacher_card(teacher_user_info: tuple,
 
 
 def week_days_main_timetable(callback_data,
-                             current_week_day_id=None,
-                             last_callback_data=None,
-                             row_width=2):
+                             current_week_day_id: int = None,
+                             last_callback_data: str = None,
+                             row_width: int = 2):
     """Список дней недели для выбора основного расписания"""
     keyboard = InlineKeyboardMarkup(row_width=row_width)
     buttons = []
@@ -389,7 +393,7 @@ def dates_ready_timetable(dates_array: list,
 
 
 def get_back_button(last_callback_data,
-                    return_keyboard=False):
+                    return_keyboard: bool = False):
     """Кнопка возврата"""
     back_button = Button("🔙").inline(last_callback_data)  # 🔙⬅◀
 
