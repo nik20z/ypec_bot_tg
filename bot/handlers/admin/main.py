@@ -21,12 +21,19 @@ from bot.functions import get_rub_balance
 from bot.misc import Qiwi
 
 from bot.parse import TimetableHandler
-# from bot.spamming import check_replacement
+from bot.spamming import check_replacement
 
 
 async def help_admin(message: Message):
     """Вывести help-сообщение"""
     await message.answer(AnswerText.help_admin)
+
+
+async def get_user_link(message: Message):
+    """Получить ссылку на пользователя"""
+    user_id_array = message.get_args().split()
+    text = '\n'.join([f"<a href='tg://user?id={user_id}'>{user_id}</a>" for user_id in user_id_array])
+    await message.answer(text)
 
 
 async def mailing_test_start(message: Message):
@@ -122,7 +129,7 @@ async def update_balance(message: Message):
 
 async def update_timetable(message: Message):
     """Проверяем замены и составляем готовое расписание"""
-    #await check_replacement(dp)
+    # await check_replacement(dp)
     pass
 
 
@@ -136,13 +143,6 @@ async def info_log(message: Message):
     """Получить лог"""
     user_id = message.chat.id
     await message.bot.send_document(user_id, open("bot/log/info.log"))
-
-
-'''
-async def error_log(message: Message):
-    user_id = message.chat.id
-    await message.bot.send_document(user_id, open("bot/log/error.log"))
-'''
 
 
 async def create_statistics(message: Message):
@@ -171,6 +171,10 @@ def register_admin_handlers(dp: Dispatcher):
                                 IDFilter(chat_id=ADMINS),
                                 commands=['help_admin'])
 
+    dp.register_message_handler(get_user_link,
+                                IDFilter(chat_id=ADMINS),
+                                commands=['user'])
+
     dp.register_message_handler(mailing_test_start,
                                 IDFilter(chat_id=ADMINS),
                                 commands=['mailing_test'])
@@ -191,12 +195,6 @@ def register_admin_handlers(dp: Dispatcher):
                                 IDFilter(chat_id=ADMINS),
                                 commands=['get_main_timetable'])
 
-    '''
-    dp.register_message_handler(get_replacement,
-                                IDFilter(chat_id=ADMINS),
-                                commands=['get_replacement'])
-                                '''
-
     dp.register_message_handler(update_balance,
                                 IDFilter(chat_id=ADMINS),
                                 commands=['update_balance'])
@@ -215,10 +213,4 @@ def register_admin_handlers(dp: Dispatcher):
 
     dp.register_message_handler(create_statistics,
                                 IDFilter(chat_id=ADMINS),
-                                commands=['test'])
-
-    '''
-    .register_message_handler(error_log,
-                                IDFilter(chat_id=ADMINS),
-                                commands=['error_log'])
-    '''
+                                commands=['stat'])
