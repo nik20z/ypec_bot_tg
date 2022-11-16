@@ -11,16 +11,11 @@ import nest_asyncio
 from bot.config import array_times
 from bot.database import Table
 from bot.filters import register_all_filters
-from bot.spamming import get_next_check_time
 from bot.handlers import register_all_handlers
-from bot.misc import TgKeys
+from bot.misc import Keys
 from bot.spamming import check_replacement
+from bot.spamming import get_next_check_time
 from bot.throttling import ThrottlingMiddleware
-
-# from bot.config import WEBHOOK_URL
-# from bot.config import WEBHOOK_PATH
-# from bot.config import WEBAPP_HOST
-# from bot.config import WEBAPP_PORT
 
 
 def repeat(func, dp, loop_repeat):
@@ -53,14 +48,13 @@ async def on_shutdown(dp: Dispatcher) -> None:
     await dp.storage.wait_closed()
 
 
-def start_bot():
+def start_telegram_bot():
     nest_asyncio.apply()
 
     Table.create()
     Table.create_view()
-    Table.check_main_timetable()
 
-    bot = Bot(token=TgKeys.TOKEN, parse_mode='HTML')
+    bot = Bot(token=Keys.TG_TOKEN, parse_mode='HTML')
     dp = Dispatcher(bot, storage=MemoryStorage())
 
     dp.middleware.setup(LoggingMiddleware())
@@ -69,6 +63,7 @@ def start_bot():
     loop = asyncio.get_event_loop()
     tasks = [loop.create_task(set_default_commands(dp))]
     loop.run_until_complete(asyncio.wait(tasks))
+
     loop.call_later(1, repeat, check_replacement, dp, loop)
 
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)

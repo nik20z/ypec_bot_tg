@@ -52,7 +52,9 @@ def week_day_translate(week_day_name: str):
         return res.title()
 
 
-def get_week_day_name_by_id(wee_day_id: int, type_case="default", bold=True):
+def get_week_day_name_by_id(wee_day_id: int,
+                            type_case: str = "default",
+                            bold: bool = True):
     """Получить название дня недели по id"""
     week_array = {'default': ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'],
                   'genitive': ['понедельника', 'вторника', 'среды', 'четверга', 'пятницы', 'субботы'],
@@ -63,7 +65,10 @@ def get_week_day_name_by_id(wee_day_id: int, type_case="default", bold=True):
     return week_day_text
 
 
-def get_day_text(date_=None, days=0, delete_sunday=True, format_str="%d.%m.%Y"):
+def get_day_text(date_: datetime = None,
+                 days: int = 0,
+                 delete_sunday: bool = True,
+                 format_str: str = "%d.%m.%Y"):
     """Получить отформатированную дату"""
     if date_ is None:
         date_ = date.today()
@@ -74,7 +79,7 @@ def get_day_text(date_=None, days=0, delete_sunday=True, format_str="%d.%m.%Y"):
     return (date_ + timedelta(days=days)).strftime(format_str)
 
 
-def get_week_day_id_by_date_(date_: str, format_str="%d.%m.%Y"):
+def get_week_day_id_by_date_(date_: str, format_str: str = "%d.%m.%Y"):
     """Получить номер недели по дате"""
     return datetime.strptime(date_, format_str).weekday()
 
