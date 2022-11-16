@@ -1,8 +1,16 @@
 from loguru import logger
-from bot import start_bot
+from bot import start_telegram_bot
 
 
 if __name__ == '__main__':
+    logger.add("bot/log/error.log",
+               format="{time:HH:mm:ss} {level} {message}",
+               level="ERROR",
+               rotation="00:00",
+               compression="zip",
+               serialize=False,
+               enqueue=True)
+
     logger.add("bot/log/info.log",
                format="{time:HH:mm:ss} {level} {module} {function} {message}",
                level="INFO",
@@ -12,4 +20,4 @@ if __name__ == '__main__':
                enqueue=True)
 
     with logger.catch():
-        start_bot()
+        start_telegram_bot()
